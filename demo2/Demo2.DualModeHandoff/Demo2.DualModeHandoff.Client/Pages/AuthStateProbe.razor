@@ -1,0 +1,124 @@
+@page "/auth-state-probe"
+@using System.Collections.Generic
+@using System.Linq
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.Extensions.Logging
+@using Demo2.DualModeHandoff.Client.Diagnostics
+@attribute [Authorize]
+@implements IDisposable
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILogger<AuthStateProbe> Logger
+
+<PageTitle>Auth State Probe</PageTitle>
+
+<h1 class="mb-3">Dual-mode Authentication State Probe</h1>
+<p class="text-muted">
+    This diagnostic view shows how the current identity flows from the server prerender to the WebAssembly instance when
+    <code>@@rendermode InteractiveAuto</code> reconnects. Sign in, open your network tab, and compare the checkpoints below
+    while the WASM boot sequence completes.
+</p>
+
+<div class="alert @(ClientHandshakeComplete ? "alert-success" : "alert-info")" role="status">
+    <strong>Latest state:</strong> @_statusMessage
+</div>
+
+<section class="mb-5">
+    <h2 class="h5">Lifecycle timeline</h2>
+    <ol class="list-group list-group-numbered shadow-sm">
+        @foreach (var entry in _events.OrderBy(e => e.Timestamp))
+        {
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <span class="fw-semibold">@entry.Phase</span>
+                    <span class="text-muted">@entry.Timestamp.LocalDateTime.ToString("T")</span>
+                </div>
+                <pre class="bg-body-tertiary rounded mt-2 mb-0 p-2 small">@entry.Details</pre>
+            </li>
+        }
+    </ol>
+</section>
+
+<section>
+    <h2 class="h5">Render mode comparison</h2>
+    <p class="text-muted">
+        Each panel reads the same <code>AuthenticationState</code> via different render modes. The server panel relays state
+        over SignalR, while the WebAssembly panel operates entirely in the browser using the Identity cookie.
+    </p>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <AuthStateSurface Title="Server component"
+                               Description="Executes on the server via SignalR"
+                               @rendermode="InteractiveServer" />
+        </div>
+        <div class="col-md-6">
+            <AuthStateSurface Title="WebAssembly component"
+                               Description="Executes entirely in the browser"
+                               @rendermode="InteractiveWebAssembly" />
+        </div>
+    </div>
+</section>
+
+@code {
+    private readonly List<AuthTimelineEntry> _events = new();
+    private string _statusMessage = "Collecting authentication state...";
+    private bool ClientHandshakeComplete => _events.Any(e => e.Phase == "WASM handshake");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AppendSnapshotAsync("Server prerender");
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AppendSnapshotAsync("Server render completed");
+        }
+    }
+
+    private async Task AppendSnapshotAsync(string phase)
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        AppendEvent(phase, state.User);
+    }
+
+    private void AppendEvent(string phase, ClaimsPrincipal principal)
+    {
+        var details = DescribePrincipal(principal);
+        _events.Add(new AuthTimelineEntry(DateTimeOffset.UtcNow, phase, details));
+        _statusMessage = $"{phase} — {(principal.Identity?.IsAuthenticated == true ? principal.Identity?.Name : "anonymous")}";
+        Logger.LogInformation("AuthStateProbe {Phase}: {Details}", phase, details);
+        StateHasChanged();
+    }
+
+    private static string DescribePrincipal(ClaimsPrincipal principal)
+    {
+        if (principal.Identity?.IsAuthenticated != true)
+        {
+            return "Anonymous principal";
+        }
+
+        var claims = principal.Claims
+            .OrderBy(claim => claim.Type, StringComparer.Ordinal)
+            .Select(claim => $"{claim.Type} = {claim.Value}");
+
+        return $"User: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nClaims:\n - {string.Join("\n - ", claims)}";
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        var state = await task;
+        await InvokeAsync(() => AppendEvent("WASM handshake", state.User));
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+
+    private sealed record AuthTimelineEntry(DateTimeOffset Timestamp, string Phase, string Details);
+}

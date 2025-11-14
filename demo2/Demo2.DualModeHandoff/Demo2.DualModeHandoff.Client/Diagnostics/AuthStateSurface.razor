@@ -1,0 +1,84 @@
+@using System.Linq
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IDisposable
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="auth-state-surface border rounded p-3 h-100">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h3 class="h6 mb-1">@Title</h3>
+            <p class="text-muted small mb-0">@Description</p>
+        </div>
+        <span class="badge @(IsAuthenticated ? "bg-success" : "bg-secondary")">@(IsAuthenticated ? "Authenticated" : "Anonymous")</span>
+    </div>
+
+    <dl class="row small mb-0">
+        <dt class="col-5">User</dt>
+        <dd class="col-7">@DisplayName</dd>
+        <dt class="col-5">Auth Type</dt>
+        <dd class="col-7">@AuthType</dd>
+        <dt class="col-5">Claim Count</dt>
+        <dd class="col-7">@_claims.Count</dd>
+    </dl>
+
+    @if (_claims.Count > 0)
+    {
+        <ul class="small mt-2 mb-0">
+            @foreach (var claim in _claims)
+            {
+                <li><strong>@claim.Type:</strong> @claim.Value</li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="small text-muted mt-2 mb-0">No claims available yet.</p>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "";
+
+    private AuthenticationState? _state;
+    private readonly List<Claim> _claims = new();
+
+    private bool IsAuthenticated => _state?.User.Identity?.IsAuthenticated == true;
+    private string DisplayName => _state?.User.Identity?.Name ?? "Anonymous";
+    private string AuthType => _state?.User.Identity?.AuthenticationType ?? "n/a";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReadStateAsync();
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    private async Task ReadStateAsync()
+    {
+        _state = await AuthStateProvider.GetAuthenticationStateAsync();
+        _claims.Clear();
+        if (_state.User.Identity?.IsAuthenticated == true)
+        {
+            _claims.AddRange(_state.User.Claims
+                .OrderBy(claim => claim.Type, StringComparer.Ordinal));
+        }
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        _state = await task;
+        _claims.Clear();
+        if (_state.User.Identity?.IsAuthenticated == true)
+        {
+            _claims.AddRange(_state.User.Claims
+                .OrderBy(claim => claim.Type, StringComparer.Ordinal));
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

@@ -22,6 +22,8 @@ dotnet ef database update
 dotnet watch
 ```
 
+> When you are ready for `demo2`, run the same commands inside `demo2/Demo2.DualModeHandoff/Demo2.DualModeHandoff`, sign in, and browse to `/auth-state-probe` to watch the InteractiveAuto handoff in action.
+
 > Port convention: all demos run on `https://localhost:7210` (and `http://localhost:5210` for non-TLS callbacks). Update each new demo’s `launchSettings.json` if a template scaffolds different ports.
 
 > Each subsequent demo reuses the previous codebase. Copy the prior folder forward (e.g., `demo1` ➜ `demo2`) before applying the new steps so you always have a working checkpoint.
@@ -81,6 +83,7 @@ dotnet watch
 ## Next Steps
 
 1. Create `demo1` and add its README (`Goal`, `Prerequisites`, `How to Run`).
-2. Duplicate `demo1` into `demo2` to build the Authentication State handoff lab, then continue cloning each completed demo forward before starting the next.
-3. Keep this roadmap updated as new .NET 10 identity features ship (e.g., enriched audit logs or future Identity passkey UX improvements).
+2. Duplicate each finished demo forward (`demo1` ➜ `demo2`, `demo2` ➜ `demo3`, …) before adding new capabilities so you always have a working checkpoint.
+3. Validate the Auth State Probe in `demo2` before diving into passkeys in `demo3`; the diagnostics become your baseline for future regressions.
+4. Keep this roadmap updated as new .NET 10 identity features ship (e.g., enriched audit logs or future Identity passkey UX improvements).
 
