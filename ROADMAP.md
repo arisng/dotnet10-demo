@@ -14,26 +14,28 @@ This workspace hosts an incremental set of demos that teach the newest ASP.NET C
 
 1. Install the .NET 10 SDK (Preview) plus the EF Core tools. Run `dotnet new update` so the local template includes the latest Identity bits called out in Microsoft’s documentation.²
 2. Clone this repo, then start with `demo1` inside VS Code or JetBrains Rider.
-3. Use the commands below to scaffold and run the first demo:
+3. Use the commands below to apply the initial migration and run the first demo:
 
 ```powershell
-cd demo1
-dotnet new blazor -n Demo1.IdentityFoundation -au Individual --interactivity Auto --all-interactive
+cd demo1/Demo1.IdentityFoundation/Demo1.IdentityFoundation
+dotnet ef database update
 dotnet watch
 ```
+
+> Port convention: all demos run on `https://localhost:7210` (and `http://localhost:5210` for non-TLS callbacks). Update each new demo’s `launchSettings.json` if a template scaffolds different ports.
 
 > Each subsequent demo reuses the previous codebase. Copy the prior folder forward (e.g., `demo1` ➜ `demo2`) before applying the new steps so you always have a working checkpoint.
 
 ## Demo Lineup
 
-| Demo  | Focus                                                    | Depends On | Highlights |
-|-------|----------------------------------------------------------|------------|------------|
-| demo1 | Identity foundation with Blazor Server + WASM dual mode  | —          | CLI scaffolding, cookie auth across render modes |
-| demo2 | Dual-mode authentication state handoff                  | demo1      | Auto render flow, AuthenticationStateProvider probes |
-| demo3 | Passkeys & WebAuthn-first login flows                    | demo2      | Identity v3 schema, manage page UX, passwordless sign-in |
-| demo4 | Role-based access control with seeded admin accounts     | demo3      | `AddRoles`, Db seeding, admin-only UI |
+| Demo  | Focus                                                    | Depends On | Highlights                                                  |
+| ----- | -------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
+| demo1 | Identity foundation with Blazor Server + WASM dual mode  | —          | CLI scaffolding, cookie auth across render modes            |
+| demo2 | Dual-mode authentication state handoff                   | demo1      | Auto render flow, AuthenticationStateProvider probes        |
+| demo3 | Passkeys & WebAuthn-first login flows                    | demo2      | Identity v3 schema, manage page UX, passwordless sign-in    |
+| demo4 | Role-based access control with seeded admin accounts     | demo3      | `AddRoles`, Db seeding, admin-only UI                       |
 | demo5 | Backend-for-Frontend secure APIs consumed from WASM      | demo4      | Minimal APIs with auth cookies, WASM HttpClient, failure UX |
-| demo6 | Production polish (secrets, logging, profile enrichment) | demo5      | User Secrets, Serilog, custom `ApplicationUser` fields |
+| demo6 | Production polish (secrets, logging, profile enrichment) | demo5      | User Secrets, Serilog, custom `ApplicationUser` fields      |
 
 ## Demo Details
 
