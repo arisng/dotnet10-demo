@@ -250,10 +250,6 @@ ClientBin/
 *.nupkg
 *.snupkg
 
-# ASP.NET Core default setup
-appsettings.json
-appsettings.*.json
-
 # Rider
 .idea/
 *.sln.iml
