@@ -10,7 +10,7 @@ You are organizing a learning workspace rooted at a single directory. This works
 - Numbers increase sequentially: `demo1`, `demo2`, `demo3`, etc.
 
 ### Root-Level Documentation
-Maintain a single concise `ROADMAP.md` file at the workspace root that:
+Maintain a single concise `README.md` file at the workspace root that:
 - Lists available demos in order
 - Describes each demo's focus and dependencies
 - Provides a quick-start path for new members
