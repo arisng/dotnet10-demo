@@ -29,9 +29,14 @@ dotnet watch
 1. Visit `https://localhost:7210`, register/sign in, then open the **Auth State Probe** entry from the nav menu. Keep the DevTools Network tab open so you can correlate SignalR reconnections with the timeline rendered on the page.
 1. Trigger a refresh or navigate between components that use `InteractiveServer`, `InteractiveAuto`, and `InteractiveWebAssembly`. Confirm that both the server and WASM-only panels show the same claims and that the timeline logs a **WASM handshake** event.
 
-## What’s New
+## What's New
 
-- Dedicated `AuthStateProbe.razor` page that subscribes to `AuthenticationStateProvider.AuthenticationStateChanged`, logs checkpoints (“Server prerender”, “Server render completed”, “WASM handshake”), and renders a visual timeline.
-- `<CascadingAuthenticationState>` now wraps the entire app so authentication flows through prerender and reconnect phases, and the probe page logs the client reconnection inside `OnAfterRenderAsync`.
-- Reusable `AuthStateSurface` diagnostic component, rendered once with `InteractiveServer` and once with `InteractiveWebAssembly`, to prove that Identity cookies guard both render modes simultaneously.
-- Updated navigation and docs so teams know exactly where to observe the dual-mode handoff before moving on to passkeys in demo3.
+- Dedicated `AuthStateProbe.razor` page with incremental timeline visualization showing the complete 4-phase InteractiveAuto lifecycle
+- Visual delay controls via `RenderDelayMs` query parameter to slow down UI updates, making each phase transition observable
+- Real-time status indicators with spinners showing when delays are active between timeline events
+- `<CascadingAuthenticationState>` wrapping the entire app so authentication flows through all render phases
+- Reusable `AuthStateSurface` diagnostic component, rendered once with `InteractiveServer` and once with `InteractiveWebAssembly`, to prove that Identity cookies guard both render modes simultaneously
+- **Key learning**: InteractiveAuto uses progressive enhancement on FIRST VISIT ONLY: (1) Server prerender → (2) Server interactive via SignalR (fallback while WASM downloads) → (3) WASM initialized → (4) WASM first render complete. On subsequent visits, Blazor checks Local Storage (`blazor-resource-hash` key) to determine if WASM is cached, skipping directly to WASM (phases 1, 3, 4 only).
+- **Critical discovery**: WASM cache state is tracked in browser **Local Storage**, not just HTTP cache. DevTools "Disable cache" doesn't affect Local Storage!
+- **Testing tip**: To observe all 4 phases including SignalR, delete `blazor-resource-hash` from Local Storage (DevTools → Application tab) or use Incognito/Private mode on your FIRST visit to the page
+- Updated navigation and detailed inline documentation with accurate phase descriptions, Local Storage caching behavior, and precise cache-clearing instructions

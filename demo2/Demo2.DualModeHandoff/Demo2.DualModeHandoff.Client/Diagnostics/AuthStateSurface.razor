@@ -3,6 +3,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<AuthStateSurface> Logger
 
 <div class="auth-state-surface border rounded p-3 h-100">
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -40,6 +42,7 @@
 @code {
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public string Description { get; set; } = "";
+    [Parameter] public int RenderDelayMs { get; set; } = 2000;
 
     private AuthenticationState? _state;
     private readonly List<Claim> _claims = new();
@@ -50,6 +53,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogInformation("AuthStateSurface OnInitializedAsync: RenderDelayMs resolved to {Delay}; Uri={Uri}", RenderDelayMs, Navigation.Uri);
+        // Delay before reading state so the component populates incrementally in the UI
+        if (RenderDelayMs > 0)
+        {
+            Logger.LogInformation("AuthStateSurface: delaying {Delay}ms before reading state", RenderDelayMs);
+            await Task.Delay(RenderDelayMs);
+        }
         await ReadStateAsync();
         AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
     }
@@ -67,6 +77,13 @@
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
+        // Delay before updating to maintain incremental UI transitions
+        if (RenderDelayMs > 0)
+        {
+            Logger.LogInformation("AuthStateSurface OnAuthenticationStateChanged: delaying {Delay}ms before updating", RenderDelayMs);
+            await Task.Delay(RenderDelayMs);
+        }
+        
         _state = await task;
         _claims.Clear();
         if (_state.User.Identity?.IsAuthenticated == true)
@@ -74,6 +91,7 @@
             _claims.AddRange(_state.User.Claims
                 .OrderBy(claim => claim.Type, StringComparer.Ordinal));
         }
+        Logger.LogInformation("AuthStateSurface OnAuthenticationStateChanged: state updated, triggering render");
         await InvokeAsync(StateHasChanged);
     }
 

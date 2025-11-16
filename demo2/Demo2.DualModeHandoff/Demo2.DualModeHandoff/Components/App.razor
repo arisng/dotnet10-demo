@@ -31,5 +31,11 @@
 
     private IComponentRenderMode? PageRenderMode =>
         HttpContext.AcceptsInteractiveRouting() ? InteractiveAuto : null;
+    
+    // Note: InteractiveAuto will:
+    // 1. Prerender on server (SSR)
+    // 2. Start as InteractiveServer (SignalR) if WASM isn't ready yet
+    // 3. Transition to InteractiveWebAssembly when WASM downloads complete
+    // The transition timing depends on WASM download speed and browser caching
 }
 
