@@ -341,6 +341,10 @@ packages/
 # .NET Core tools
 .tool/
 
+# SQLite WAL files
+*.db-wal
+*.db-shm
+
 # Temporary files
 *.tmp
 *.temp
