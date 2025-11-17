@@ -1,14 +1,28 @@
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Demo2.DualModeHandoff.Client.Pages;
 using Demo2.DualModeHandoff.Components;
 using Demo2.DualModeHandoff.Components.Account;
 using Demo2.DualModeHandoff.Data;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Static Web Assets for non-Development environments
+// This enables serving .client project assets in Staging/Production when running locally
+if (!builder.Environment.IsDevelopment())
+{
+    StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+}
+
 // Add services to the container.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents()
@@ -44,6 +58,8 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseResponseCompression();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
