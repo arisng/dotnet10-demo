@@ -2,7 +2,13 @@
 
 ## Goal
 
-Instrument the baseline Identity app so you can watch authentication state travel from the server prerender phase to the InteractiveAuto WebAssembly instance. The new diagnostics answer “is my cookie still valid when the client reconnects?” by logging the claims principal at every step and rendering server-only and WASM-only components side-by-side.
+Master authentication state flow through InteractiveAuto phases AND implement complete passkey infrastructure, establishing the **comprehensive baseline** for all subsequent demos.
+
+This demo serves dual purposes:
+1. **Diagnostics:** Watch authentication state travel from server prerender to WASM handoff with detailed lifecycle visualization
+2. **Passkeys:** Implement the full .NET 10 passkey experience (registration, management, passwordless login)
+
+The diagnostics answer "is my cookie still valid when the client reconnects?" by logging the claims principal at every step. The passkey implementation provides the production-ready authentication foundation that demo3-6 will build upon with BFF APIs, Entra ID integration, and permission-based authorization.
 
 ## Prerequisites
 
@@ -57,6 +63,16 @@ dotnet Demo2.DualModeHandoff.dll --urls "https://*:7210;http://*:5210"
 - Files are properly cached and not re-downloaded
 
 **Note:** WASM HTTP caching (`max-age=31536000`) only works in published builds. During development (`dotnet run`/`dotnet watch`), WASM files use `max-age=0` to support Hot Reload and incremental compilation. This is expected behavior. See `.docs/issues/251116-blazor-wasm-http-caching.md` for details.
+
+## Why demo2 Is the Real Baseline
+
+While demo1 provides the initial scaffolding, demo2 represents the **true starting point** for production development:
+- ✅ Complete passkey implementation ready for real users
+- ✅ Authentication diagnostics for troubleshooting complex scenarios
+- ✅ Production published mode validation with HTTP caching
+- ✅ Foundation for BFF APIs (demo3), Entra ID integration (demo4-5), and production hardening (demo6)
+
+Think of demo1 as "proof of concept" and demo2 as "production baseline."
 
 ## What's New
 

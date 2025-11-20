@@ -32,53 +32,125 @@ dotnet watch
 
 | Demo  | Focus                                                    | Depends On | Highlights                                                  |
 | ----- | -------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
-| demo1 | Identity foundation with Blazor Server + WASM dual mode  | —          | CLI scaffolding, cookie auth across render modes            |
-| demo2 | Dual-mode authentication state handoff                   | demo1      | Auto render flow, AuthenticationStateProvider probes        |
-| demo3 | Passkeys & WebAuthn-first login flows                    | demo2      | Identity v3 schema, manage page UX, passwordless sign-in    |
-| demo4 | Role-based access control with seeded admin accounts     | demo3      | `AddRoles`, Db seeding, admin-only UI                       |
-| demo5 | Backend-for-Frontend secure APIs consumed from WASM      | demo4      | Minimal APIs with auth cookies, WASM HttpClient, failure UX |
-| demo6 | Production polish (secrets, logging, profile enrichment) | demo5      | User Secrets, Serilog, custom `ApplicationUser` fields      |
+| demo1 | Identity scaffolding baseline                            | —          | CLI scaffolding, cookie auth foundation                      |
+| demo2 | Dual-mode diagnostics + Passkeys                         | demo1      | Auth state probe, full passkey implementation, WASM caching |
+| demo3 | BFF APIs + Permission-Based RBAC                         | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
+| demo4 | Microsoft Entra ID integration                           | demo3      | External provider, inherits permission system               |
+| demo5 | Entra ID claims → Permission mapping                     | demo4      | Auto-map Entra groups/roles to local permissions            |
+| demo6 | Production hardening (multi-identity edition)            | demo5      | Secrets, logging, monitoring, HTTPS enforcement             |
 
 ## Demo Details
 
 ### demo1 – Identity Foundation
 
 - **Goal:** Scaffold a Blazor Web App that keeps Identity cookies valid across Server, Auto, and WASM render modes.
-- **What you’ll do:** Run `dotnet new blazor -au Individual`, configure a local connection string, apply `InitialIdentity` migration, and verify login/register flows while toggling render modes.
+- **What you'll do:** Run `dotnet new blazor -au Individual`, configure a local connection string, apply `InitialIdentity` migration, and verify login/register flows while toggling render modes.
 - **Outcome:** A baseline solution you can reuse for every later demo.
+- **Note:** While demo1 provides the scaffolding, **demo2 becomes the real baseline** with complete passkey implementation and diagnostics that all subsequent demos build upon.
 
-### demo2 – Dual-Mode Authentication State Handoff
+### demo2 – Dual-Mode Diagnostics + Passkeys
 
-- **Goal:** Observe how authentication flows from the Server prerender to the WASM instance when using `@rendermode InteractiveAuto`.
-- **What’s new:**
-  - Add a dedicated `AuthStateProbe.razor` page that injects `AuthenticationStateProvider`, subscribes to `AuthenticationStateChanged`, and logs the `ClaimsPrincipal` before and after the WASM handoff.
-  - Use `<CascadingAuthenticationState>` plus `OnAfterRenderAsync` to show when the client reconnects with the same auth cookie (look for the browser switching from WebSocket traffic to WASM-only requests).
-  - Render both a server-only component (`@rendermode InteractiveServer`) and a WASM-only component (`@rendermode InteractiveWebAssembly`) on the same page to prove that Identity cookies seamlessly protect both.
-- **Outcome:** You gain a concrete recipe for debugging auth propagation through Blazor Server, Auto, and WASM phases.
+- **Goal:** Master authentication state flow through InteractiveAuto phases AND implement complete passkey infrastructure, establishing the comprehensive baseline for all subsequent demos.
+- **What's new:**
+  - Dedicated `AuthStateProbe.razor` page with 4-phase InteractiveAuto lifecycle visualization
+  - Visual delay controls via `RenderDelayMs` query parameter to observe phase transitions
+  - Real-time status indicators showing when delays are active between timeline events
+  - `<CascadingAuthenticationState>` wrapping the entire app for seamless auth flow
+  - Reusable `AuthStateSurface` diagnostic component rendered with both `InteractiveServer` and `InteractiveWebAssembly`
+  - **Complete passkey implementation:** IdentitySchemaVersion3, `/PasskeyCreationOptions` and `/PasskeyRequestOptions` endpoints, full Manage UI (`Passkeys.razor`, `RenamePasskey.razor`), passwordless login flow
+  - Production published mode diagnostics with HTTP caching behavior (`max-age=31536000, immutable`)
+  - Local Storage caching discovery and documentation
+  - **Key learning:** InteractiveAuto progressive enhancement (4 phases on first visit, 3 phases on subsequent visits when WASM is cached)
+- **Outcome:** Both a diagnostic toolkit for auth propagation AND a production-ready passkey implementation that serves as the **real baseline** for demo3-6. This is where the workshop truly begins.
 
-### demo3 – Passkey-Ready Identity
+### demo3 – BFF APIs + Permission-Based RBAC
 
-- **Goal:** Light up the .NET 10 passkey experience end-to-end.
-- **What’s new:** Ensure `options.Stores.SchemaVersion = IdentitySchemaVersions.Version3`, confirm `MapAdditionalIdentityEndpoints`, and exercise the Manage ➜ Passkeys UI plus passwordless login, following the Microsoft Learn guidance noted above.
-- **Outcome:** Users can register and authenticate with platform passkeys alongside passwords.
+- **Goal:** Implement Backend-for-Frontend pattern with fine-grained permission-based authorization, establishing the security model before introducing external identity providers.
+- **What's new:**
+  - **Data Model:** `Role`, `Permission`, `RolePermission` junction table, extend Identity's user-role relationships
+  - **Authorization Infrastructure:**
+    - `IPermissionService` to aggregate user → roles → permissions
+    - `IClaimsTransformation` implementation (`PermissionClaimsTransformation`) that adds permission claims to `ClaimsPrincipal` on each request (standard .NET pattern)
+    - Custom `PermissionRequirement` and `PermissionAuthorizationHandler`
+    - Extension method: `RequirePermission("weather.read")`
+    - Use .NET 10's `AddAuthorizationBuilder()` fluent API for policy registration
+  - **Seed Data:**
+    - Roles: Admin, Manager, User
+    - Permissions: `weather.read`, `weather.write`, `users.read`, `users.write`, `users.delete`, `reports.view`, `reports.export`
+    - Seeded passkey users: admin@local.app (Admin), manager@local.app (Manager), user@local.app (User)
+  - **BFF API Endpoints:**
+    - `/api/weather` (GET: `weather.read`, POST: `weather.write`)
+    - `/api/users` (GET: `users.read`, DELETE: `users.delete`)
+    - `/api/reports` (GET: `reports.view`, `/export`: `reports.export`)
+  - **WASM Components:**
+    - `WeatherDataFetcher.razor`, `UserManagement.razor`, `ReportsViewer.razor`, `ReportsExporter.razor`
+    - Each component calls BFF APIs via `HttpClient`, shows permission-specific UI with 401/403 error handling
+  - **UI Authorization:** `<AuthorizeView Policy="RequirePermission" Resource="users.delete">`
+  - **Enhanced Diagnostics:** `AuthStateProbe` displays user's roles and aggregated permission claims
+  - **Observability (.NET 10):** Leverage built-in authorization metrics (`aspnetcore.authorization.*`) for monitoring permission checks
+  - **Cookie API Behavior (.NET 10):** Demonstrate automatic 401/403 responses for Minimal APIs (no login redirects) via `IApiEndpointMetadata`
+- **Architecture:** Monolithic Blazor Web App (Server + WASM + APIs + RBAC in one project)
+- **Outcome:** Complete permission-based authorization system using .NET 10 best practices with API endpoints explicitly declaring required permissions. Foundation ready for Entra ID integration (demo4 will map Entra roles → existing permissions). Clear separation: authentication (who you are) vs. authorization (what you can do).
 
-### demo4 – Production RBAC
+### demo4 – Microsoft Entra ID Integration
 
-- **Goal:** Introduce roles, seed an admin, and gate protected UI.
-- **What’s new:** `AddRoles<IdentityRole>()`, a scoped `DbSeeder`, `AdminDashboard.razor` guarded by `[Authorize(Roles="Admin")]`, and `<AuthorizeView>` navigation links.
-- **Outcome:** Clear separation between admin and standard experiences with automated bootstrap.
+- **Goal:** Add Microsoft Entra ID as an external identity provider alongside local passkey authentication, supporting a hybrid scenario (B2C customers use passkeys, employees use Entra ID).
+- **What's new:**
+  - Configure `AddMicrosoftIdentityWebApp()` or OpenID Connect for Entra ID
+  - Update login UI to offer "Sign in with Microsoft" alongside passkey/password options
+  - Map Entra ID claims (email, name, oid) to `ApplicationUser`
+  - Handle account linking scenarios (e.g., same email exists as local + Entra user)
+  - **Reuse permission system from demo3:** Entra users get role assignments via database seeding initially
+  - Update `AuthStateProbe` to differentiate local vs. Entra ID authentication source
+  - BFF APIs continue working for both local and Entra-authenticated users (cookie-based)
+- **Architecture:** Still monolithic, introduce `ExternalAuthenticationState` to track provider
+- **Outcome:** Unified authentication experience where identity source is transparent to the authorization layer. Both passkey admins and Entra admins have identical permissions through the same claims transformation pipeline.
 
-### demo5 – BFF-Secured APIs for WASM
+### demo5 – Entra ID Claims → Permission Mapping
 
-- **Goal:** Show how WASM components call secure APIs without tokens using the built-in BFF pattern.
-- **What’s new:** Minimal API endpoints protected with `RequireAuthorization`, WASM components (e.g., `AdminDataFetcher`) running under `@rendermode InteractiveWebAssembly`, and resilient HttpClient logging.
-- **Outcome:** Admins fetch sensitive data client-side while cookies stay server-issued and never exposed to storage.
+- **Goal:** Implement automatic role mapping based on Entra ID group membership or app roles, enabling centralized permission management through Entra ID.
+- **What's new:**
+  - Configure Entra ID app registration with App Roles ("Admin", "Manager", "Employee") or security groups
+  - Enhance `ClaimsTransformation` middleware:
+    - If Entra user: read group/role claims → map to local roles → load permissions
+    - If local user: existing role lookup from demo3
+  - Example mappings:
+    - Entra group "Engineering-Admins" → local "Admin" role → all admin permissions
+    - Entra app role "Manager" → local "Manager" role → manager permissions
+  - Both local passkey admins and Entra admins have identical permission claims
+  - Add `RoleMappingConfiguration` table to manage Entra group ID → local role mappings
+  - Admin UI to configure mappings (optional: `RoleMappingManager.razor`)
+  - Update diagnostics to show Entra groups/roles and their mapped permissions
+- **Outcome:** Centralized Entra ID role management automatically grants app permissions. IT admins control access via Entra groups without touching the application database. Authorization logic remains identity-source agnostic.
 
-### demo6 – Operational Polish & Profile Data
+### demo6 – Production Hardening (Multi-Identity Edition)
 
-- **Goal:** Harden the boilerplate for real deployments and capture richer profile info.
-- **What’s new:** Move secrets to User Secrets / env variables, configure Serilog or Application Insights, extend `ApplicationUser` with fields like `FullName`, and scaffold the Identity Manage page to edit them while incorporating Microsoft’s HTTPS/HSTS/origin recommendations for passkeys.
-- **Outcome:** A production-ready baseline with observability, safer configuration, and customizable user identity data.
+- **Goal:** Prepare the hybrid passkey + Entra ID app for production deployment with operational best practices and enterprise-grade observability.
+- **What's new:**
+  - **Secrets Management:**
+    - Move Entra ID client secrets to Azure Key Vault or User Secrets
+    - Environment-specific configuration for Dev/Staging/Production
+  - **Logging & Telemetry:**
+    - Configure Serilog with structured logging (capture auth provider, user source, permission checks)
+    - Add Application Insights telemetry for sign-in events, API calls, authorization failures
+    - Custom metrics: passkey vs. Entra sign-in ratio, permission denial rates
+  - **Enhanced User Profile:**
+    - Extend `ApplicationUser` with custom fields: `FullName`, `Department`, `PreferredAuthMethod`
+    - Update Manage profile page to edit custom fields
+    - Sync Entra ID profile data (displayName, jobTitle) to local fields on sign-in
+  - **Security Hardening:**
+    - Enforce HTTPS/HSTS with custom origin validation for passkeys (per Microsoft docs)
+    - Add Content Security Policy headers
+    - Configure rate limiting for API endpoints
+  - **Health Checks:**
+    - Database connectivity check
+    - Entra ID availability check (token endpoint)
+    - Permission cache health
+  - **Deployment:**
+    - Document deployment to Azure App Service with managed identity
+    - Configure Entra ID app registration for production redirect URIs
+    - Database migration strategy for zero-downtime deployments
+- **Outcome:** A production-ready template for SaaS apps requiring both consumer (passkey) and enterprise (Entra ID) authentication, with comprehensive observability, secure configuration management, and operational resilience.
 
 ## Next Steps
 

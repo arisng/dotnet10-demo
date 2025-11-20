@@ -31,3 +31,12 @@ dotnet watch
 1. Optional: open the browser dev tools Network tab to watch the switch from server-side websockets to WASM-only requests when running `InteractiveAuto`. This becomes important evidence for demo2’s diagnostics.
 
 Once you are satisfied, copy this folder forward to start demo2.
+
+## Important Note
+
+While demo1 provides the essential scaffolding and validates that Identity cookies work across render modes, **demo2 becomes the real baseline** for this workshop. Demo2 extends this foundation with:
+- Complete passkey implementation (IdentitySchemaVersion3, full Manage UI, passwordless login)
+- Sophisticated authentication state diagnostics
+- Production-ready published mode with HTTP caching
+
+All subsequent demos (demo3-6) build upon demo2's comprehensive baseline rather than demo1's minimal scaffolding.
