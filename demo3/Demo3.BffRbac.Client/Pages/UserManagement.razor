@@ -17,7 +17,7 @@
     <div class="alert alert-danger">@error</div>
 }
 
-@if (users == null)
+@if (Users == null)
 {
     <p><em>Loading...</em></p>
 }
@@ -32,7 +32,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var user in users)
+            @foreach (var user in Users)
             {
                 <tr>
                     <td>@user.Email</td>
@@ -47,7 +47,8 @@ else
 }
 
 @code {
-    private UserDto[]? users;
+    [PersistentState]
+    public UserDto[]? Users { get; set; }
     private string? error;
 
     protected override async Task OnInitializedAsync()
@@ -60,7 +61,7 @@ else
         try
         {
             var userList = await UserService.GetUsersAsync();
-            users = userList.ToArray();
+            Users ??= userList.ToArray();
             error = null;
         }
         catch (Exception ex)
@@ -74,6 +75,7 @@ else
         try
         {
             await UserService.DeleteUserAsync(id);
+            Users = null;
             await LoadUsers();
         }
         catch (Exception ex)
