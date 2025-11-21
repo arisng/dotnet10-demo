@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Demo3.BffRbac.Client/Demo3.BffRbac.Client.csproj" />
+  <Project Path="Demo3.BffRbac/Demo3.BffRbac.csproj" />
+</Solution>
