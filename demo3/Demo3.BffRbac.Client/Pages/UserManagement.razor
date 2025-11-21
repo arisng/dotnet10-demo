@@ -1,0 +1,102 @@
+@page "/user-management"
+@using Demo3.BffRbac.Client.Models
+@using Demo3.BffRbac.Client.Services
+@using System.Net
+@using System.Security.Authentication
+@using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveAuto
+@attribute [Authorize(Policy = "users.read")]
+@inject IUserService UserService
+
+<PageTitle>User Management</PageTitle>
+
+<h1>User Management</h1>
+
+@if (error != null)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.Email</td>
+                    <td>@string.Join(", ", user.Roles)</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteUser(user.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private UserDto[]? users;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            var userList = await UserService.GetUsersAsync();
+            users = userList.ToArray();
+            error = null;
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex, "view users");
+        }
+    }
+
+    private async Task DeleteUser(string id)
+    {
+        try
+        {
+            await UserService.DeleteUserAsync(id);
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex, "delete user");
+        }
+    }
+
+    private void HandleError(Exception ex, string action)
+    {
+        if (ex is UnauthorizedAccessException || 
+           (ex is HttpRequestException httpEx && httpEx.StatusCode == HttpStatusCode.Forbidden))
+        {
+            error = $"You don't have permission to {action}.";
+        }
+        else if (ex is AuthenticationException || 
+                (ex is HttpRequestException httpEx2 && httpEx2.StatusCode == HttpStatusCode.Unauthorized))
+        {
+            error = $"You must sign in to {action}.";
+        }
+        else
+        {
+            error = $"Failed to {action}: {ex.Message}";
+        }
+    }
+}

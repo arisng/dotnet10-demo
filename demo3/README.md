@@ -37,8 +37,39 @@ Add permission claims to ClaimsPrincipal
     ↓
 Authorization handlers check permission claims
     ↓
+// ...existing code...
 API endpoint grants/denies access
 ```
+
+### Service Abstraction Pattern (New in Demo 3)
+
+To solve the "Prerendering Dependency Injection" challenge (where `HttpClient` is not available during server-side prerendering), we use a Service Abstraction Pattern:
+
+1. **Shared Interfaces**: `IWeatherService`, `IUserService`, etc., defined in the Client project.
+2. **Client Implementation**: `ClientWeatherService` uses `HttpClient` to call the BFF APIs.
+3. **Server Implementation**: `ServerWeatherService` accesses the Database/UserManager directly.
+4. **Registration**:
+   - **Client**: Registers `Client*` services.
+   - **Server**: Registers `Server*` services.
+
+This allows components to simply inject `IWeatherService` and work correctly in both environments (Server Prerendering and Client WASM) without code changes.
+
+## How to Run
+// ...existing code...
+```
+
+### Service Abstraction Pattern (New in Demo 3)
+
+To solve the "Prerendering Dependency Injection" challenge (where `HttpClient` is not available during server-side prerendering), we use a Service Abstraction Pattern:
+
+1.  **Shared Interfaces**: `IWeatherService`, `IUserService`, etc., defined in the Client project.
+2.  **Client Implementation**: `ClientWeatherService` uses `HttpClient` to call the BFF APIs.
+3.  **Server Implementation**: `ServerWeatherService` accesses the Database/UserManager directly.
+4.  **Registration**:
+    *   **Client**: Registers `Client*` services.
+    *   **Server**: Registers `Server*` services.
+
+This allows components to simply inject `IWeatherService` and work correctly in both environments (Server Prerendering and Client WASM) without code changes.
 
 ## How to Run
 
