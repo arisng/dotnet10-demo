@@ -1,0 +1,108 @@
+@page "/reports"
+@using Demo4.EntraIntegration.Shared.Models
+@using Demo4.EntraIntegration.Client.Services
+@using System.Net
+@using System.Security.Authentication
+@using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveAuto
+@attribute [Authorize(Policy = "reports.view")]
+@inject IReportService ReportService
+@inject IJSRuntime JS
+
+<PageTitle>Reports</PageTitle>
+
+<h1>Reports</h1>
+
+@if (error != null)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ExportReports">Export Reports</button>
+</div>
+
+@if (reports == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var report in reports)
+            {
+                <tr>
+                    <td>@report.Title</td>
+                    <td>@report.Date.ToShortDateString()</td>
+                    <td>@report.Status</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private ReportDto[]? reports;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var list = await ReportService.GetReportsAsync();
+            reports = list.ToArray();
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex, "view reports");
+        }
+    }
+
+    private async Task ExportReports()
+    {
+        try
+        {
+            var fileBytes = await ReportService.ExportReportsAsync();
+            // In a real app, we'd download the file. For demo, just show success.
+            await JS.InvokeVoidAsync("alert", "Report exported successfully! Content length: " + fileBytes.Length);
+        }
+        catch (Exception ex)
+        {
+            if (ex is UnauthorizedAccessException || 
+               (ex is HttpRequestException httpEx && httpEx.StatusCode == HttpStatusCode.Forbidden))
+            {
+                error = "You don't have permission to export reports.";
+            }
+            else
+            {
+                error = $"Failed to export: {ex.Message}";
+            }
+        }
+    }
+
+    private void HandleError(Exception ex, string action)
+    {
+        if (ex is UnauthorizedAccessException || 
+           (ex is HttpRequestException httpEx && httpEx.StatusCode == HttpStatusCode.Forbidden))
+        {
+            error = $"You don't have permission to {action}.";
+        }
+        else if (ex is AuthenticationException || 
+                (ex is HttpRequestException httpEx2 && httpEx2.StatusCode == HttpStatusCode.Unauthorized))
+        {
+            error = $"You must sign in to {action}.";
+        }
+        else
+        {
+            error = $"Failed to {action}: {ex.Message}";
+        }
+    }
+}

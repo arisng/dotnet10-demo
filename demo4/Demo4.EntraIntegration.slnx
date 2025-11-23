@@ -1,0 +1,10 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Demo4.EntraIntegration.Client/Demo4.EntraIntegration.Client.csproj" />
+  <Project Path="Demo4.EntraIntegration.Shared/Demo4.EntraIntegration.Shared.csproj" />
+  <Project Path="Demo4.EntraIntegration/Demo4.EntraIntegration.csproj" />
+</Solution>

@@ -1,0 +1,299 @@
+@page "/auth-state-probe"
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.Extensions.Logging
+@using Demo4.EntraIntegration.Client.Components.Diagnostics
+@implements IDisposable
+@inject ILogger<AuthStateProbe> Logger
+@inject NavigationManager Navigation
+
+@using Microsoft.AspNetCore.Components
+
+<PageTitle>Auth State Probe</PageTitle>
+
+<h1 class="mb-3">Dual-mode Authentication State Probe</h1>
+<p class="text-muted">
+    This diagnostic view shows how authentication flows through <code>@@rendermode InteractiveAuto</code>.
+    The timeline captures the complete lifecycle: <strong>(1)</strong> Server prerender (static HTML), 
+    <strong>(2)</strong> Server interactive via SignalR (while WASM downloads), 
+    <strong>(3)</strong> WASM initialization (client takeover), and 
+    <strong>(4)</strong> WASM first render completion.
+    The <code>RenderDelayMs</code> parameter (@RenderDelayMs ms) artificially slows each checkpoint to make the transition visible.
+</p>
+
+<div class="alert alert-info small mb-3" role="alert">
+    <strong>InteractiveAuto behavior:</strong> This render mode uses a progressive enhancement strategy:
+    <br/>
+    <ol class="mb-0 mt-1">
+        <li><strong>Server prerender:</strong> Initial static HTML sent to browser</li>
+        <li><strong>Server interactive (SignalR):</strong> On FIRST VISIT ONLY, if WASM isn't cached yet</li>
+        <li><strong>WASM downloads:</strong> .NET WebAssembly runtime downloads and caches</li>
+        <li><strong>WASM takeover:</strong> When ready, WASM replaces SignalR (first visit) or runs immediately (cached)</li>
+    </ol>
+    <br/>
+    <strong>⚠️ To see the SignalR phase (3 methods):</strong>
+    <ol class="mb-0">
+        <li><strong>Delete Local Storage (Easiest):</strong> DevTools → Application → Local Storage → Delete <code>blazor-resource-hash</code> → Refresh</li>
+        <li><strong>Incognito Mode:</strong> Open new Incognito/Private window (fresh Local Storage)</li>
+        <li><strong>Slow Connection:</strong> After clearing Local Storage, use "Slow 3G" throttling to extend SignalR phase</li>
+    </ol>
+    <br/>
+    <strong>Why DevTools "Disable cache" doesn't work:</strong> Blazor tracks WASM cache state in <strong>Local Storage</strong>, not just HTTP cache. DevTools cache control doesn't affect Local Storage!
+</div>
+
+<div class="alert @(ClientHandshakeComplete ? "alert-success" : "alert-info")" role="status">
+    <strong>Latest state:</strong> @_statusMessage
+    @if (_isDelaying)
+    {
+        <span class="ms-2 spinner-border spinner-border-sm" role="status" aria-label="Delaying"></span>
+        <span class="ms-1 small text-muted">Delaying @RenderDelayMs ms to show transition...</span>
+    }
+</div>
+
+<div class="mb-3">
+    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearTimeline">
+        <span class="bi bi-arrow-clockwise"></span> Clear Timeline
+    </button>
+    <span class="ms-2 small text-muted">
+        Events captured: @_events.Count
+    </span>
+</div>
+
+<section class="mb-5">
+    <h2 class="h5">Lifecycle timeline</h2>
+    @if (_events.Count == 0)
+    {
+        <div class="alert alert-secondary">
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            Waiting for lifecycle events...
+        </div>
+    }
+    else
+    {
+        <ol class="list-group list-group-numbered shadow-sm">
+            @foreach (var entry in _events.OrderBy(e => e.Timestamp))
+            {
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-semibold">@entry.Phase</span>
+                        <span class="text-muted">@entry.Timestamp.LocalDateTime.ToString("HH:mm:ss.fff")</span>
+                    </div>
+                    <pre class="bg-body-tertiary rounded mt-2 mb-0 p-2 small">@entry.Details</pre>
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+<section>
+    <h2 class="h5">Render mode comparison</h2>
+    <p class="text-muted">
+        Each panel reads the same <code>AuthenticationState</code> via different render modes. The server panel relays state
+        over SignalR, while the WebAssembly panel operates entirely in the browser using the Identity cookie.
+    </p>
+    <div class="row g-4">
+        <div class="col-md-6">
+            @* Only render the server render-mode on the server host. WebAssembly doesn't support InteractiveServer and will throw if it tries to create it. *@
+            @if (!OperatingSystem.IsBrowser())
+            {
+                <AuthStateSurface Title="Server component"
+                                   Description="Executes on the server via SignalR"
+                                   RenderDelayMs="@RenderDelayMs"
+                                   @rendermode="InteractiveServer" />
+            }
+            @* If a client-side fallback is useful, show a placeholder for clarity when running purely in WASM. *@
+            else
+            {
+                <div class="auth-state-surface border rounded p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h3 class="h6 mb-1">Server component</h3>
+                            <p class="text-muted small mb-0">Not available in the browser (server prerender only)</p>
+                        </div>
+                        <span class="badge bg-warning">Unavailable</span>
+                    </div>
+                    <p class="small text-muted mb-0">`InteractiveServer` render mode is not supported in WASM. Use the WebAssembly panel to inspect client-side state.</p>
+                </div>
+            }
+        </div>
+        <div class="col-md-6">
+            @if (OperatingSystem.IsBrowser())
+            {
+                <AuthStateSurface Title="WebAssembly component"
+                                   Description="Executes entirely in the browser"
+                                   RenderDelayMs="@RenderDelayMs"
+                                   @rendermode="InteractiveWebAssembly" />
+            }
+            else
+            {
+                <div class="auth-state-surface border rounded p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h3 class="h6 mb-1">WebAssembly component</h3>
+                            <p class="text-muted small mb-0">Executes entirely in the browser</p>
+                        </div>
+                        <span class="badge bg-warning">Unavailable</span>
+                    </div>
+                    <p class="small text-muted mb-0">`InteractiveWebAssembly` render mode is not available during server prerender. This placeholder is shown on the server.</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "RenderDelayMs")]
+    public int RenderDelayMs { get; set; } = 2000;
+
+    [CascadingParameter]
+    protected Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private readonly List<AuthTimelineEntry> _events = new();
+    private string _statusMessage = "Collecting authentication state...";
+    private bool _isDelaying = false;
+    private bool ClientHandshakeComplete => _events.Any(e => e.Phase.Contains("WASM initialized"));
+    private Task<AuthenticationState>? _lastAuthStateTask;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Logger.LogInformation("AuthStateProbe OnInitializedAsync: RenderDelayMs resolved to {Delay}; Uri={Uri}; IsBrowser={IsBrowser}", 
+            RenderDelayMs, Navigation.Uri, OperatingSystem.IsBrowser());
+
+        _lastAuthStateTask = AuthState;
+
+        if (OperatingSystem.IsBrowser())
+        {
+            // When this component initializes in the browser, it means InteractiveAuto has handed off from
+            // server to WASM. This is the WASM takeover moment, not a "prerender" (WASM never prerenders).
+            // Show this immediately to indicate WASM has started
+            await AppendSnapshotAsync("WASM initialized (InteractiveAuto handoff)", skipDelay: true);
+        }
+        else
+        {
+            // First lifecycle event: server-side prerender during the initial HTTP request
+            // Show this immediately since it's the first event
+            await AppendSnapshotAsync("Server prerender", skipDelay: true);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastAuthStateTask != AuthState)
+        {
+            _lastAuthStateTask = AuthState;
+            await OnAuthenticationStateChanged(AuthState);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Logger.LogInformation("AuthStateProbe OnAfterRenderAsync(firstRender): IsBrowser={IsBrowser}; RenderDelayMs={Delay}", 
+                OperatingSystem.IsBrowser(), RenderDelayMs);
+            
+            // InteractiveAuto lifecycle:
+            // - Server side: After prerender, if WASM isn't ready yet, SignalR connects and this fires
+            //   This is the InteractiveServer fallback phase while WASM downloads
+            // - Browser side: After WASM initializes, this fires when first render completes
+            if (OperatingSystem.IsBrowser())
+            {
+                await AppendSnapshotAsync("WASM first render complete", skipDelay: false);
+            }
+            else
+            {
+                // This fires when SignalR has connected and component is interactive on server
+                // while WASM is still downloading
+                await AppendSnapshotAsync("Server interactive (SignalR connected, WASM downloading...)", skipDelay: false);
+            }
+        }
+    }
+
+    private async Task AppendSnapshotAsync(string phase, bool skipDelay = false)
+    {
+        // Apply delay BEFORE showing the event so users can see incremental transitions in the UI
+        if (RenderDelayMs > 0 && !skipDelay)
+        {
+            _isDelaying = true;
+            _statusMessage = $"Preparing to show: {phase}";
+            StateHasChanged();
+            
+            Logger.LogInformation("AppendSnapshotAsync {Phase}: delaying {Delay}ms before showing event at {Time}", phase, RenderDelayMs, DateTimeOffset.UtcNow);
+            await Task.Delay(RenderDelayMs);
+            Logger.LogInformation("AppendSnapshotAsync {Phase}: delay complete, now appending event at {Time}", phase, DateTimeOffset.UtcNow);
+            
+            _isDelaying = false;
+        }
+
+        // Use the CascadingParameter which is the source of truth for the current component tree
+        var state = await AuthState;
+        AppendEvent(phase, state.User);
+    }
+
+    private void AppendEvent(string phase, ClaimsPrincipal principal)
+    {
+        var details = DescribePrincipal(principal);
+        _events.Add(new AuthTimelineEntry(DateTimeOffset.UtcNow, phase, details));
+        _statusMessage = $"{phase} — {(principal.Identity?.IsAuthenticated == true ? principal.Identity?.Name : "anonymous")}";
+        Logger.LogInformation("AuthStateProbe {Phase}: {Details}", phase, details);
+        StateHasChanged();
+    }
+
+    private static string DescribePrincipal(ClaimsPrincipal principal)
+    {
+        if (principal.Identity?.IsAuthenticated != true)
+        {
+            return "Anonymous principal";
+        }
+
+        var claims = principal.Claims
+            .OrderBy(claim => claim.Type, StringComparer.Ordinal)
+            .Select(claim => $"{claim.Type} = {claim.Value}");
+
+        return $"\nUser: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nClaims:\n - {string.Join("\n - ", claims)}";
+    }
+
+    private async Task OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        // Apply delay before showing this event to maintain incremental UI transitions
+        if (RenderDelayMs > 0)
+        {
+            await InvokeAsync(() =>
+            {
+                _isDelaying = true;
+                _statusMessage = "Preparing to show: Auth state changed";
+                StateHasChanged();
+            });
+            
+            Logger.LogInformation("OnAuthenticationStateChanged: delaying {Delay}ms before showing event", RenderDelayMs);
+            await Task.Delay(RenderDelayMs);
+            
+            _isDelaying = false;
+        }
+        
+        var state = await task;
+        // This event fires when authentication state changes (login, logout, token refresh).
+        // In InteractiveAuto scenarios, this may also fire during the WASM handoff if the
+        // PersistentComponentState deserialization triggers a state change notification.
+        await InvokeAsync(() => AppendEvent("Auth state changed", state.User));
+    }
+
+    private void ClearTimeline()
+    {
+        _events.Clear();
+        _statusMessage = "Timeline cleared. Navigate away and back to capture new events.";
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+    }
+
+    private sealed record AuthTimelineEntry(DateTimeOffset Timestamp, string Phase, string Details);
+}

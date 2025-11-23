@@ -30,15 +30,15 @@ dotnet watch
 
 ## Demo Lineup
 
-| Demo  | Focus                                                    | Depends On | Highlights                                                  |
-| ----- | -------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
-| demo1 | Identity scaffolding baseline                            | —          | CLI scaffolding, cookie auth foundation                      |
-| demo2 | Dual-mode diagnostics + Passkeys                         | demo1      | Auth state probe, full passkey implementation, WASM caching |
-| demo3 | BFF APIs + Permission-Based RBAC                         | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
-| demo4 | Microsoft Entra ID integration                           | demo3      | External provider, Graph API (OBO), inherits permission system |
-| demo5 | Custom Downstream APIs (Microservices)                   | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison |
-| demo6 | Entra ID claims → Permission mapping                     | demo5      | Auto-map Entra groups/roles to local permissions            |
-| demo7 | Production hardening (multi-identity edition)            | demo6      | Secrets, logging, monitoring, HTTPS enforcement             |
+| Demo  | Focus                                         | Depends On | Highlights                                                               |
+| ----- | --------------------------------------------- | ---------- | ------------------------------------------------------------------------ |
+| demo1 | Identity scaffolding baseline                 | —          | CLI scaffolding, cookie auth foundation                                  |
+| demo2 | Dual-mode diagnostics + Passkeys              | demo1      | Auth state probe, full passkey implementation, WASM caching              |
+| demo3 | BFF APIs + Permission-Based RBAC              | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
+| demo4 | Microsoft Entra ID integration                | demo3      | External provider, Graph API (OBO), inherits permission system           |
+| demo5 | Custom Downstream APIs (Microservices)        | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
+| demo6 | Entra ID claims → Permission mapping          | demo5      | Auto-map Entra groups/roles to local permissions                         |
+| demo7 | Production hardening (multi-identity edition) | demo6      | Secrets, logging, monitoring, HTTPS enforcement                          |
 
 ## Demo Details
 
