@@ -8,9 +8,8 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.Extensions.Logging
 @using Demo3.BffRbac.Client.Diagnostics
-@attribute [Authorize]
+@* @attribute [Authorize] *@
 @implements IDisposable
-@inject AuthenticationStateProvider AuthStateProvider
 @inject ILogger<AuthStateProbe> Logger
 @inject NavigationManager Navigation
 
@@ -152,15 +151,22 @@
     [Parameter]
     [SupplyParameterFromQuery(Name = "RenderDelayMs")]
     public int RenderDelayMs { get; set; } = 2000;
+
+    [CascadingParameter]
+    protected Task<AuthenticationState> AuthState { get; set; } = default!;
+
     private readonly List<AuthTimelineEntry> _events = new();
     private string _statusMessage = "Collecting authentication state...";
     private bool _isDelaying = false;
     private bool ClientHandshakeComplete => _events.Any(e => e.Phase.Contains("WASM initialized"));
+    private Task<AuthenticationState>? _lastAuthStateTask;
 
     protected override async Task OnInitializedAsync()
     {
         Logger.LogInformation("AuthStateProbe OnInitializedAsync: RenderDelayMs resolved to {Delay}; Uri={Uri}; IsBrowser={IsBrowser}", 
             RenderDelayMs, Navigation.Uri, OperatingSystem.IsBrowser());
+
+        _lastAuthStateTask = AuthState;
 
         if (OperatingSystem.IsBrowser())
         {
@@ -175,8 +181,15 @@
             // Show this immediately since it's the first event
             await AppendSnapshotAsync("Server prerender", skipDelay: true);
         }
+    }
 
-        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastAuthStateTask != AuthState)
+        {
+            _lastAuthStateTask = AuthState;
+            await OnAuthenticationStateChanged(AuthState);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -219,7 +232,8 @@
             _isDelaying = false;
         }
 
-        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        // Use the CascadingParameter which is the source of truth for the current component tree
+        var state = await AuthState;
         AppendEvent(phase, state.User);
     }
 
@@ -243,10 +257,10 @@
             .OrderBy(claim => claim.Type, StringComparer.Ordinal)
             .Select(claim => $"{claim.Type} = {claim.Value}");
 
-        return $"User: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nClaims:\n - {string.Join("\n - ", claims)}";
+        return $"\nUser: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nClaims:\n - {string.Join("\n - ", claims)}";
     }
 
-    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    private async Task OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
         // Apply delay before showing this event to maintain incremental UI transitions
         if (RenderDelayMs > 0)
@@ -280,7 +294,6 @@
 
     public void Dispose()
     {
-        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 
     private sealed record AuthTimelineEntry(DateTimeOffset Timestamp, string Phase, string Details);

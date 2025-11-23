@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Security.Claims;
 using Demo3.BffRbac.Client.Models;
 using Demo3.BffRbac.Services;
