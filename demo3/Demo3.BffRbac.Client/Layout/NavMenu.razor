@@ -52,13 +52,13 @@
             </div>
         </AuthorizeView>
 
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="auth-state-probe">
+                <span class="bi bi-activity-nav-menu" aria-hidden="true"></span> Auth State Probe
+            </NavLink>
+        </div>
         <AuthorizeView>
             <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="auth-state-probe">
-                        <span class="bi bi-activity-nav-menu" aria-hidden="true"></span> Auth State Probe
-                    </NavLink>
-                </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
                         <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
