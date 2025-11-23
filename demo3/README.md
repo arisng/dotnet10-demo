@@ -45,12 +45,12 @@ API endpoint grants/denies access
 
 To solve the "Prerendering Dependency Injection" challenge (where `HttpClient` is not available during server-side prerendering), we use a Service Abstraction Pattern:
 
-1. **Shared Interfaces**: `IWeatherService`, `IUserService`, etc., defined in the Client project.
+1. **Shared Interfaces**: `IWeatherService`, `IUserService`, etc., defined in the **Shared** project (`Demo3.BffRbac.Shared`).
 2. **Client Implementation**: `ClientWeatherService` uses `HttpClient` to call the BFF APIs.
 3. **Server Implementation**: `ServerWeatherService` accesses the Database/UserManager directly.
 4. **Registration**:
-   - **Client**: Registers `Client*` services.
-   - **Server**: Registers `Server*` services.
+    * **Client**: Registers `Client*` services.
+    * **Server**: Registers `Server*` services.
 
 This allows components to simply inject `IWeatherService` and work correctly in both environments (Server Prerendering and Client WASM) without code changes.
 
@@ -83,13 +83,19 @@ Copy-Item -Path demo2 -Destination demo3 -Recurse
 cd demo3
 ```
 
-2. Rename solution and projects (use your IDE's rename/refactor tools or manually):
+2. **Refactor Project Structure (New Step):**
+   - Create `Demo3.BffRbac.Shared` class library.
+   - Move `Models` from Client to Shared.
+   - Create `Components` folder in Client and move `Pages` and `Layout` inside it.
+   - Add references to Shared project.
+
+3. Rename solution and projects (use your IDE's rename/refactor tools or manually):
    - Solution: `Demo2.DualModeHandoff.sln` → `Demo3.BffRbac.sln`
    - Server project: `Demo2.DualModeHandoff` → `Demo3.BffRbac`
    - Client project: `Demo2.DualModeHandoff.Client` → `Demo3.BffRbac.Client`
    - Update namespaces in all `.cs` and `.razor` files accordingly
 
-3. Create and apply the new RBAC migration:
+4. Create and apply the new RBAC migration:
 
 ```powershell
 cd Demo3.BffRbac/Demo3.BffRbac
@@ -97,18 +103,18 @@ dotnet ef migrations add AddRolePermissionSystem
 dotnet ef database update
 ```
 
-4. Launch with hot reload:
+5. Launch with hot reload:
 
 ```powershell
 dotnet watch
 ```
 
-5. Visit `https://localhost:7210`, sign in with one of the seeded accounts:
+6. Visit `https://localhost:7210`, sign in with one of the seeded accounts:
    - **admin@local.app** / `Admin123!` (Admin role - all permissions)
    - **manager@local.app** / `Manager123!` (Manager role - subset of permissions)
    - **user@local.app** / `User123!` (User role - read-only permissions)
 
-6. Test the permission system:
+7. Test the permission system:
    - Navigate to **Auth State Probe** - see roles and permission claims
    - Try **Weather** page - calls `/api/weather` (requires `weather.read`)
    - Try **User Management** page - calls `/api/users` (requires `users.read`, delete requires `users.delete`)
@@ -135,6 +141,21 @@ curl https://localhost:7210/api/weather -k
 - Confirm they match the user's role assignments
 
 ## What's New from demo2
+
+### Project Structure Refactoring (.NET 10 Best Practices)
+
+To align with modern Blazor Web App standards and ensure clean separation of concerns, we have refactored the solution structure:
+
+1. **New Shared Library (`Demo3.BffRbac.Shared`)**:
+    * Contains all DTOs (e.g., `WeatherForecast`, `UserDto`) and shared Enums.
+    * Prevents the Server project from depending on the Client project for data contracts.
+    * Referenced by both Server and Client projects.
+
+2. **Unified Component Structure**:
+    * **Client Project**: Now mirrors the Server's folder structure.
+        * `Components/Pages`: Contains all routable WASM pages.
+        * `Components/Layout`: Contains `MainLayout`, `NavMenu`, etc.
+    * **Benefit**: Makes moving components between Server (SSR) and Client (WASM) rendering modes seamless, as namespaces and paths remain consistent.
 
 ### Database Schema Extensions
 
@@ -364,9 +385,9 @@ reportsApi.MapGet("/export", ExportReports)
 ### WASM Components Consuming BFF APIs
 
 **Files (in `.Client` project):**
-- `Pages/Weather.razor` - Calls `/api/weather`
-- `Pages/UserManagement.razor` - Calls `/api/users`
-- `Pages/Reports.razor` - Calls `/api/reports`
+- `Components/Pages/Weather.razor` - Calls `/api/weather`
+- `Components/Pages/UserManagement.razor` - Calls `/api/users`
+- `Components/Pages/Reports.razor` - Calls `/api/reports`
 
 **Pattern:**
 ```csharp

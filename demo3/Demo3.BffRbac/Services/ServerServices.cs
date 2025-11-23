@@ -1,7 +1,7 @@
 using System.Security.Authentication;
 using System.Security.Claims;
 using Demo3.BffRbac.Authorization;
-using Demo3.BffRbac.Client.Models;
+using Demo3.BffRbac.Shared.Models;
 using Demo3.BffRbac.Client.Services;
 using Demo3.BffRbac.Data;
 using Microsoft.AspNetCore.Authorization;

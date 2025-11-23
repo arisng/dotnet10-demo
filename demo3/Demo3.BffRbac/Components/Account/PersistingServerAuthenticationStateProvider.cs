@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Demo3.BffRbac.Client.Models;
+using Demo3.BffRbac.Shared.Models;
 using Demo3.BffRbac.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;

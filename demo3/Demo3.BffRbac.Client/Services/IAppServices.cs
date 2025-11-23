@@ -1,4 +1,4 @@
-using Demo3.BffRbac.Client.Models;
+using Demo3.BffRbac.Shared.Models;
 
 namespace Demo3.BffRbac.Client.Services;
 

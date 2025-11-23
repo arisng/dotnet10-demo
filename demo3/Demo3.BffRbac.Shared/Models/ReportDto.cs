@@ -1,4 +1,4 @@
-namespace Demo3.BffRbac.Client.Models;
+namespace Demo3.BffRbac.Shared.Models;
 
 public class ReportDto
 {

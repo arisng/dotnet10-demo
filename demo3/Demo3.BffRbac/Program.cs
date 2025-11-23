@@ -1,5 +1,5 @@
 using Demo3.BffRbac.Client.Services;
-using Demo3.BffRbac.Client.Models;
+using Demo3.BffRbac.Shared.Models;
 using Demo3.BffRbac.Components;
 using Demo3.BffRbac.Components.Account;
 using Demo3.BffRbac.Data;
