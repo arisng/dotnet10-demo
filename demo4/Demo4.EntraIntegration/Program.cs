@@ -6,13 +6,14 @@ using Demo4.EntraIntegration.Data;
 using Demo4.EntraIntegration.Authorization;
 using Demo4.EntraIntegration.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
-
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Identity.Web;
 using Microsoft.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,17 +55,21 @@ builder.Services.AddScoped<IReportService, ServerReportService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IClaimsTransformation, PermissionClaimsTransformation>();
 
+// Microsoft Graph service
+builder.Services.AddScoped<IGraphService, GraphService>();
+
+// Entra user provisioning service
+builder.Services.AddScoped<IEntraUserProvisioningService, EntraUserProvisioningService>();
+
 // Register policies for Blazor [Authorize] attributes
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("weather.read", policy => policy.AddRequirements(new PermissionRequirement("weather.read")));
-    options.AddPolicy("weather.write", policy => policy.AddRequirements(new PermissionRequirement("weather.write")));
-    options.AddPolicy("users.read", policy => policy.AddRequirements(new PermissionRequirement("users.read")));
-    options.AddPolicy("users.write", policy => policy.AddRequirements(new PermissionRequirement("users.write")));
-    options.AddPolicy("users.delete", policy => policy.AddRequirements(new PermissionRequirement("users.delete")));
-    options.AddPolicy("reports.view", policy => policy.AddRequirements(new PermissionRequirement("reports.view")));
-    options.AddPolicy("reports.export", policy => policy.AddRequirements(new PermissionRequirement("reports.export")));
-});
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("weather.read", policy => policy.AddRequirements(new PermissionRequirement("weather.read")))
+    .AddPolicy("weather.write", policy => policy.AddRequirements(new PermissionRequirement("weather.write")))
+    .AddPolicy("users.read", policy => policy.AddRequirements(new PermissionRequirement("users.read")))
+    .AddPolicy("users.write", policy => policy.AddRequirements(new PermissionRequirement("users.write")))
+    .AddPolicy("users.delete", policy => policy.AddRequirements(new PermissionRequirement("users.delete")))
+    .AddPolicy("reports.view", policy => policy.AddRequirements(new PermissionRequirement("reports.view")))
+    .AddPolicy("reports.export", policy => policy.AddRequirements(new PermissionRequirement("reports.export")));
 
 // Register custom handlers
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -75,6 +80,70 @@ builder.Services.AddAuthentication(options =>
         options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
     })
     .AddIdentityCookies();
+
+builder.Services.AddAuthentication()
+    .AddMicrosoftIdentityWebApp(
+        builder.Configuration.GetSection("AzureAd"),
+        openIdConnectScheme: "MicrosoftEntra",
+        cookieScheme: null,
+        subscribeToOpenIdConnectMiddlewareDiagnosticsEvents: true)
+    .EnableTokenAcquisitionToCallDownstreamApi()
+    .AddDownstreamApi("DownstreamApi", builder.Configuration.GetSection("DownstreamApi"))
+    .AddInMemoryTokenCaches();
+
+// Configure OIDC events for auto-provisioning
+builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
+{
+    options.Events = new OpenIdConnectEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var principal = context.Principal;
+
+            if (principal == null)
+            {
+                logger.LogWarning("OnTokenValidated: Principal is null");
+                return;
+            }
+
+            // Check if this is an Entra ID user (has oid claim)
+            var oid = principal.GetObjectId();
+            if (string.IsNullOrEmpty(oid))
+            {
+                // Not an Entra user, skip provisioning
+                return;
+            }
+
+            logger.LogInformation("OnTokenValidated: Entra user detected with OID: {Oid}", oid);
+
+            try
+            {
+                // Auto-provision user in database
+                var provisioningService = context.HttpContext.RequestServices
+                    .GetRequiredService<IEntraUserProvisioningService>();
+
+                var user = await provisioningService.ProvisionUserAsync(principal, context.HttpContext.RequestAborted);
+
+                logger.LogInformation("OnTokenValidated: User provisioning completed for {Email} (ID: {UserId})",
+                    user.Email, user.Id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "OnTokenValidated: Failed to provision Entra user with OID: {Oid}", oid);
+                
+                // Fail the authentication to prevent incomplete user state
+                context.Fail($"Failed to provision user: {ex.Message}");
+            }
+        },
+
+        OnAuthenticationFailed = async context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(context.Exception, "OIDC Authentication failed: {Error}", context.Exception?.Message);
+        }
+    };
+});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

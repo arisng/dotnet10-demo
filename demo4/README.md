@@ -60,6 +60,7 @@ Demo4 transforms the monolithic Blazor Web App to support **dual authentication 
 - **Package:** `Microsoft.Identity.Web` (v4.1.0) and `Microsoft.Identity.Web.DownstreamApi`
 - **Configuration:** `AddMicrosoftIdentityWebApp()` with OpenID Connect
 - **Login Flow:** "Sign in with Microsoft" button alongside passkey/password options
+- **Auto-Provisioning:** OIDC `OnTokenValidated` event handler creates local user records on first login
 - **Claims Mapping:** Map Entra ID claims (`oid`, `preferred_username`, `name`) to `ApplicationUser`
 
 ### 2. Microsoft Graph Integration (OBO Flow)
@@ -81,15 +82,21 @@ Demo4 transforms the monolithic Blazor Web App to support **dual authentication 
 
 **Extended `ApplicationUser`:**
 ```csharp
-public string? ExternalAuthenticationProvider { get; set; } // "Entra" or null
+public string? ExternalAuthenticationProvider { get; set; } // "MicrosoftEntra" or null
 public string? EntraObjectId { get; set; } // Entra "oid" claim
 public string? DisplayName { get; set; } // Synced from Graph API
 public string? JobTitle { get; set; } // Synced from Graph API
 ```
 
+**Auto-Provisioning Architecture:**
+- User creation happens in `OnTokenValidated` OIDC event (not in claims transformation)
+- Dedicated `EntraUserProvisioningService` handles user creation, role sync, and profile updates
+- Implements idempotency and race condition protection
+- Automatic rollback on failure to maintain consistency
+
 **Account Linking Strategy:**
 - If an Entra user signs in with email matching a local user, prompt for account linking (future enhancement)
-- For now, treat them as separate accounts to demonstrate dual authentication sources
+- For now, throw error if duplicate email detected to demonstrate dual authentication sources
 
 ### 5. Enhanced Diagnostics
 
@@ -260,48 +267,77 @@ In demo6, we'll implement automatic role mapping from Entra App Roles.
 ```csharp
 using Microsoft.Identity.Web;
 
+// Register auto-provisioning service
+builder.Services.AddScoped<IEntraUserProvisioningService, EntraUserProvisioningService>();
+
 // Add Entra ID authentication
-builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
+builder.Services.AddAuthentication()
+    .AddMicrosoftIdentityWebApp(
+        builder.Configuration.GetSection("AzureAd"),
+        openIdConnectScheme: "MicrosoftEntra",
+        cookieScheme: null,
+        subscribeToOpenIdConnectMiddlewareDiagnosticsEvents: true)
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddDownstreamApi("DownstreamApi", builder.Configuration.GetSection("DownstreamApi"))
     .AddInMemoryTokenCaches();
+
+// Configure OIDC events for auto-provisioning
+builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
+{
+    options.Events = new OpenIdConnectEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var oid = context.Principal?.GetObjectId();
+            if (!string.IsNullOrEmpty(oid))
+            {
+                var provisioningService = context.HttpContext.RequestServices
+                    .GetRequiredService<IEntraUserProvisioningService>();
+                await provisioningService.ProvisionUserAsync(context.Principal);
+            }
+        }
+    };
+});
 
 // Serialize auth state for WASM
 builder.Services.AddAuthenticationStateSerialization();
 ```
 
-### Claims Transformation Enhancement
+### Claims Transformation (Simplified)
 
 **Updated `PermissionClaimsTransformation.cs`:**
+
+Claims transformation now focuses solely on **loading permission claims** (its original purpose). User provisioning has been moved to OIDC events.
 
 ```csharp
 public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
 {
     var identity = (ClaimsIdentity)principal.Identity!;
     
+    ApplicationUser? user = null;
+    
     // Detect authentication source
-    var isEntraUser = principal.HasClaim(c => c.Type == "oid");
+    var oid = principal?.GetObjectId(); // Entra ID Object ID
+    var isEntraUser = !string.IsNullOrEmpty(oid);
     
     if (isEntraUser)
     {
-        // Load user by Entra Object ID
-        var oid = principal.FindFirstValue("oid");
-        var user = await _userManager.Users
+        // Entra ID user - lookup by Object ID
+        // NOTE: User provisioning happens in OIDC OnTokenValidated event
+        user = await _userManager.Users
             .FirstOrDefaultAsync(u => u.EntraObjectId == oid);
-        
-        // If first login, create user record
-        if (user == null)
-        {
-            user = await CreateEntraUserAsync(principal);
-        }
     }
     else
     {
-        // Existing local user logic
-        var userId = _userManager.GetUserId(principal);
-        // ... load permissions as before
+        // Local Identity user
+        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            user = await _userManager.FindByIdAsync(userId);
+        }
     }
+    
+    if (user == null) return principal;
     
     // Load roles → permissions (unified for both sources)
     var permissions = await _permissionService.GetUserPermissionsAsync(user.Id);
@@ -314,9 +350,44 @@ public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
 }
 ```
 
+**Key Changes:**
+- ❌ Removed user creation logic (moved to `OnTokenValidated`)
+- ❌ Removed role syncing logic (moved to provisioning service)
+- ✅ Only performs claim enrichment (read-only operation)
+- ✅ Clean separation of concerns
+
+### Entra User Provisioning Service
+
+**New: `IEntraUserProvisioningService`**
+
+Handles all Entra user lifecycle operations during OIDC authentication:
+
+```csharp
+public interface IEntraUserProvisioningService
+{
+    Task<ApplicationUser> ProvisionUserAsync(
+        ClaimsPrincipal principal, 
+        CancellationToken cancellationToken = default);
+}
+```
+
+**Key Features:**
+- **Idempotency:** Safe to call multiple times for same user
+- **Race Condition Protection:** Database-backed checks prevent duplicate users
+- **Automatic Rollback:** Failed external login creation triggers user deletion
+- **Role Syncing:** Maps Entra app roles to local roles with security whitelist
+- **Graph Profile Updates:** Fetches displayName, jobTitle from Microsoft Graph
+- **External Login Recovery:** Repairs partial failure states from previous logins
+
+**Security Safeguards:**
+- Blocks auto-creation of sensitive roles (Admin, Administrator, SuperAdmin)
+- Assigns default "User" role when no Entra roles present
+- Trusts Entra email verification (`EmailConfirmed = true`)
+- Graceful degradation on Graph API failures (non-fatal)
+
 ### Microsoft Graph Service
 
-**New: `IGraphService` (server-side)**
+**Existing: `IGraphService` (server-side)**
 
 ```csharp
 public interface IGraphService
@@ -357,10 +428,20 @@ public class GraphService : IGraphService
 - Click **Grant admin consent for [Tenant]**
 - Refresh browser and retry sign-in
 
+### "Failed to provision user" Error During Login
+
+- Check application logs for detailed error from `EntraUserProvisioningService`
+- Common causes:
+  - Database connection failure
+  - Missing required claims (`oid`, `preferred_username`)
+  - Duplicate email conflict with existing local user
+- Authentication fails if provisioning fails (by design) to prevent incomplete state
+
 ### Entra User Has No Permissions
 
-- Entra users start with **no roles** until explicitly assigned
+- Entra users start with **default "User" role** (no elevated permissions)
 - Manually assign roles via SQL (see "How to Run" section)
+- If Entra app roles are configured, they sync automatically (with security whitelist)
 - In demo6, we'll automate this via Entra App Roles mapping
 
 ### Graph API Returns 401 Unauthorized
@@ -368,6 +449,12 @@ public class GraphService : IGraphService
 - Verify `User.Read` scope is granted in Entra portal
 - Check `DownstreamApi:Scopes` in `appsettings.Development.json`
 - Ensure `EnableTokenAcquisitionToCallDownstreamApi()` is called in `Program.cs`
+
+### External Login Missing for Existing User
+
+- Service automatically repairs this on next login via `EnsureExternalLoginExistsAsync()`
+- Check logs for "External login missing for existing user" warning
+- This can occur if user was created manually or provisioning partially failed previously
 
 ## Observability
 
@@ -379,8 +466,21 @@ Demo4 inherits .NET 10 authorization metrics from demo3:
 
 **New Telemetry:**
 - Sign-in events: Track authentication provider (Local vs. Entra)
+- User provisioning metrics: Creation success/failure, rollback events
 - Graph API call latency and failures
 - Token acquisition metrics from Microsoft.Identity.Web
+- OIDC event diagnostics: `OnTokenValidated`, `OnAuthenticationFailed`
+
+**Structured Logging:**
+```
+[INF] Starting Entra user provisioning for OID: {Oid}
+[INF] Created user record for Entra user: {Email}
+[INF] Added external login for Entra user: {Email}
+[INF] Syncing {Count} Entra roles for user {Email}
+[INF] Successfully provisioned Entra user: {Email} (ID: {UserId})
+[WRN] Skipping sensitive role '{Role}' for user {Email}
+[ERR] Failed to provision Entra user with OID: {Oid}
+```
 
 ## What's Next?
 
@@ -391,6 +491,30 @@ Demo4 inherits .NET 10 authorization metrics from demo3:
 
 You'll implement the On-Behalf-Of (OBO) flow to call a custom protected API from the Blazor app, demonstrating microservice authentication.
 
+## Architecture Decision Records
+
+### Why Auto-Provisioning Moved from ClaimsTransformation to OIDC Events
+
+**Original Approach:** Demo4 initially performed user provisioning in `IClaimsTransformation.TransformAsync()`.
+
+**Problem:** Claims transformation is designed for **read-only claim enrichment**, not database mutations. This violated separation of concerns and created:
+- Race condition vulnerabilities on concurrent logins
+- Limited error handling and rollback capabilities
+- Side effects in a pipeline meant for claim processing
+- Partial state if `AddLoginAsync()` failed after user creation
+
+**Solution:** Refactored to OIDC `OnTokenValidated` event with dedicated `EntraUserProvisioningService`.
+
+**Benefits:**
+- ✅ Runs once during authentication (not on every request)
+- ✅ Proper error handling with automatic rollback
+- ✅ Clean separation: provisioning in auth events, permission loading in claims transformation
+- ✅ Idempotency and race condition protection at database level
+- ✅ Can fail authentication if provisioning fails (prevents incomplete state)
+- ✅ Aligns with Microsoft's recommended patterns
+
+**Reference:** See `.docs/issues/251124_entra-auto-provisioning-oidc-refactoring.md` for full analysis.
+
 ---
 
-**Demo4 Checkpoint:** You now have a production-grade hybrid authentication system where local passkey users and Entra ID employees share the same permission-based authorization infrastructure. The BFF security model ensures cookie-based authentication while the OBO flow enables server-side Graph API calls.
+**Demo4 Checkpoint:** You now have a production-grade hybrid authentication system where local passkey users and Entra ID employees share the same permission-based authorization infrastructure. The BFF security model ensures cookie-based authentication while the OBO flow enables server-side Graph API calls. Auto-provisioning follows industry best practices with proper separation of concerns, error handling, and idempotency guarantees.
