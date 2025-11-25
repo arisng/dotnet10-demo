@@ -1,0 +1,60 @@
+@using Demo5.DownstreamApi.Shared.Models
+@using Demo5.DownstreamApi.Client.Services
+@inject IWeatherService WeatherService
+
+<div class="alert alert-info">
+    <strong>BFF Pattern:</strong> This component calls the local <code>/api/weather</code> endpoint using cookie authentication. 
+    The server acts as a proxy to downstream services.
+</div>
+
+@if (error != null)
+{
+    <div class="alert alert-danger">
+        <strong>Error:</strong> @error
+    </div>
+}
+else if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th aria-label="Temperature in Celsius">Temp. (C)</th>
+                <th aria-label="Temperature in Fahrenheit">Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private WeatherForecast[]? forecasts;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            forecasts = await WeatherService.GetForecastAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load weather data: {ex.Message}";
+        }
+    }
+}

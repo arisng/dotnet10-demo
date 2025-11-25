@@ -1,0 +1,81 @@
+@using Demo5.DownstreamApi.Shared.Models
+@inject HttpClient Http
+@rendermode InteractiveAuto
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Downstream API Pattern (Token-based)</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <strong>Downstream Pattern:</strong> This component calls <code>/api/downstream-weather</code> (BFF endpoint) 
+            which then uses <strong>IDownstreamApi</strong> to call the Protected API at <code>https://localhost:7220/weather</code> 
+            with Bearer tokens via the On-Behalf-Of (OBO) flow.
+        </div>
+        
+        @if (isLoading)
+        {
+            <p><em>Loading weather data from downstream API...</em></p>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <strong>Error:</strong> @errorMessage
+            </div>
+        }
+        else if (forecasts != null)
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Temp. (°C)</th>
+                        <th>Temp. (°F)</th>
+                        <th>Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var forecast in forecasts)
+                    {
+                        <tr>
+                            <td>@forecast.Date.ToShortDateString()</td>
+                            <td>@forecast.TemperatureC</td>
+                            <td>@forecast.TemperatureF</td>
+                            <td>@forecast.Summary</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private WeatherForecast[]? forecasts;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("/api/downstream-weather");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            errorMessage = "Unauthorized. Please sign in with Entra ID (passkey auth does not support downstream API calls).";
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            errorMessage = "Forbidden. You don't have the required 'Forecast.Read' scope.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load weather data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

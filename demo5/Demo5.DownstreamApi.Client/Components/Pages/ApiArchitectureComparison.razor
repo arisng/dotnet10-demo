@@ -1,0 +1,83 @@
+@page "/api-comparison"
+@using Demo5.DownstreamApi.Client.Components
+@using Microsoft.AspNetCore.Components
+@rendermode InteractiveAuto
+@attribute [Authorize]
+
+<PageTitle>API Architecture Comparison</PageTitle>
+
+<h1>API Architecture Comparison</h1>
+
+<p>This page demonstrates two different patterns for calling APIs from a Blazor WebAssembly application.</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <h2>BFF (Backend-for-Frontend)</h2>
+        <p><strong>Local API, Cookie authentication, Implicit trust, Server-side proxy, No token exposure to client</strong></p>
+        <WeatherDataFetcher />
+    </div>
+    <div class="col-md-6">
+        <h2>Downstream (Microservice)</h2>
+        <p><strong>Remote API, Bearer token, Explicit trust, CORS required, Client handles tokens (via OBO)</strong></p>
+        <DownstreamWeatherFetcher />
+    </div>
+</div>
+
+<h2>Architecture Comparison</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Aspect</th>
+            <th>BFF (Cookie-based)</th>
+            <th>Downstream (Token-based)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Endpoint</strong></td>
+            <td><code>/api/weather</code> (local)</td>
+            <td><code>https://localhost:7220/weather</code> (remote)</td>
+        </tr>
+        <tr>
+            <td><strong>Authentication</strong></td>
+            <td>Cookie</td>
+            <td>Bearer Token (JWT)</td>
+        </tr>
+        <tr>
+            <td><strong>Trust Model</strong></td>
+            <td>Implicit (same origin)</td>
+            <td>Explicit (token validation)</td>
+        </tr>
+        <tr>
+            <td><strong>CORS</strong></td>
+            <td>Not required</td>
+            <td>Required</td>
+        </tr>
+        <tr>
+            <td><strong>Token Exposure</strong></td>
+            <td>None (server-side only)</td>
+            <td>Managed by Microsoft.Identity.Web</td>
+        </tr>
+        <tr>
+            <td><strong>Use Case</strong></td>
+            <td>Monolithic apps, tight coupling</td>
+            <td>Microservices, distributed systems</td>
+        </tr>
+        <tr>
+            <td><strong>Network Hops</strong></td>
+            <td>1 (client → server)</td>
+            <td>2 (client → server → API)</td>
+        </tr>
+        <tr>
+            <td><strong>Scalability</strong></td>
+            <td>Limited to monolith</td>
+            <td>Independent scaling</td>
+        </tr>
+        <tr>
+            <td><strong>Complexity</strong></td>
+            <td>Lower</td>
+            <td>Higher</td>
+        </tr>
+    </tbody>
+</table>
