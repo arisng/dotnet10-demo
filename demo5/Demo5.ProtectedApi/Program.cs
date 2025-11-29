@@ -8,18 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
-// Add CORS policy allowing the Blazor app origin
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowBlazorApp", policy =>
-    {
-        policy.WithOrigins("https://localhost:7210")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
 builder.Services.AddAuthorization();
+
+// NOTE: CORS is intentionally NOT configured.
+// This API is called only from the BFF server (server-to-server via OBO flow).
+// CORS is a browser-only mechanism and does not apply to HttpClient calls.
+// Removing CORS enforces the BFF pattern and prevents direct browser access.
 
 var app = builder.Build();
 
@@ -30,7 +24,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowBlazorApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -58,8 +51,7 @@ app.MapGet("/weather", [Authorize] (HttpContext httpContext) =>
         .ToArray();
 
     return Results.Ok(forecast);
-})
-.RequireCors("AllowBlazorApp");
+});
 
 app.Run();
 
