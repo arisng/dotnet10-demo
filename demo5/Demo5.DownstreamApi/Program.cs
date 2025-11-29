@@ -89,11 +89,11 @@ builder.Services.AddAuthentication()
         cookieScheme: null,
         subscribeToOpenIdConnectMiddlewareDiagnosticsEvents: true)
     .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddDownstreamApi("DownstreamApi", builder.Configuration.GetSection("DownstreamApi"))
-    .AddDownstreamApi("ProtectedApi", builder.Configuration.GetSection("ProtectedApi"))
+    .AddDownstreamApi("MicrosoftGraph", builder.Configuration.GetSection("MicrosoftGraph"))
+    .AddDownstreamApi("WeatherApi", builder.Configuration.GetSection("WeatherApi"))
     .AddInMemoryTokenCaches();
 
-// Configure OIDC events for auto-provisioning
+// Configure OIDC events for auto-provisioning Entra users
 builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
 {
     options.Events = new OpenIdConnectEvents
@@ -210,7 +210,7 @@ downstreamWeatherApi.MapGet("/", async (IDownstreamApi downstreamApi) =>
 {
     try
     {
-        var forecast = await downstreamApi.GetForUserAsync<WeatherForecast[]>("ProtectedApi", options => options.RelativePath = "/weather");
+        var forecast = await downstreamApi.GetForUserAsync<WeatherForecast[]>("WeatherApi", options => options.RelativePath = "/weather");
         return Results.Ok(forecast);
     }
     catch (Exception ex)

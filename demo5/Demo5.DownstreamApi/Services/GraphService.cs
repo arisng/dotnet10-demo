@@ -22,7 +22,7 @@ public class GraphService : IGraphService
         try
         {
             var result = await _downstreamApi.GetForUserAsync<UserProfile>(
-                "DownstreamApi",
+                "MicrosoftGraph",
                 options =>
                 {
                     options.RelativePath = "me";
@@ -43,7 +43,7 @@ public class GraphService : IGraphService
         try
         {
             using var response = await _downstreamApi.GetForUserAsync<HttpResponseMessage>(
-                "DownstreamApi",
+                "MicrosoftGraph",
                 options =>
                 {
                     options.RelativePath = "me/photo/$value";
