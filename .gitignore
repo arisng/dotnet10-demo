@@ -348,3 +348,4 @@ packages/
 # Temporary files
 *.tmp
 *.temp
+node_modules/*

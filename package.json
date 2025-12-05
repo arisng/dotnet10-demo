@@ -1,0 +1,12 @@
+{
+  "name": "ladv-webapi-validation",
+  "version": "1.0.0",
+  "description": "Validation scripts for LADV WebAPI",
+  "main": "scripts/validate-globs.js",
+  "scripts": {
+    "validate-globs": "node scripts/validate-globs.js"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.3"
+  }
+}
