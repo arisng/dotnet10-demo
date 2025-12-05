@@ -20,7 +20,7 @@ $calendar = $culture.Calendar
 $week = $calendar.GetWeekOfYear($monday, [System.Globalization.CalendarWeekRule]::FirstFourDayWeek, [System.DayOfWeek]::Monday)
 $year = $monday.Year
 $weekPadded = '{0:D2}' -f $week
-$dirPath = Join-Path -Path (Get-Location) -ChildPath "_docs/changelogs"
+$dirPath = Join-Path -Path (Get-Location) -ChildPath ".docs/changelogs"
 if (-not (Test-Path -Path $dirPath)) { New-Item -ItemType Directory -Path $dirPath -Force | Out-Null }
 
 # Build file path
