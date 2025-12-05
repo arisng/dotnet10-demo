@@ -101,7 +101,10 @@ Root `README.md` maintains the demo lineup table with focus, dependencies, and h
 
 ### `.docs/` Folder Convention
 
-The root `.docs/` folder supports AI-driven development workflow:
+The `.docs/` folder supports AI-driven development workflow at two levels:
+
+#### Root `.docs/` (Workspace-Level)
+Cross-cutting documentation that applies to the entire workspace:
 
 | Folder | Purpose | Naming Pattern |
 |--------|---------|----------------|
@@ -109,7 +112,30 @@ The root `.docs/` folder supports AI-driven development workflow:
 | `research/` | Research findings that ground implementation plans with verified facts | `YYMMDD_<kebab-case-title>.md` |
 | `agent/` | Agentic AI workflow docs—custom agent architecture, orchestration patterns | Descriptive names |
 
-**Usage:** Before implementing complex features, check `.docs/research/` for existing findings. Document new discoveries in `.docs/issues/` (for problems) or `.docs/research/` (for implementation guidance).
+#### Demo-Level `.docs/` (demo5+)
+Starting from demo5, each demo folder may contain its own `.docs/` folder for demo-specific documentation:
+
+```
+demo<N>/
+├── .docs/
+│   ├── issues/      # Demo-specific issues and resolutions
+│   └── research/    # Demo-specific research and implementation notes
+├── Demo<N>.<Name>/
+├── Demo<N>.<Name>.Client/
+└── ...
+```
+
+**When to use demo-level `.docs/`:**
+- Issues specific to that demo's implementation
+- Research relevant only to that demo's feature set
+- Implementation decisions that don't affect other demos
+
+**When to use root `.docs/`:**
+- Cross-demo patterns and conventions
+- Workspace-wide tooling or infrastructure issues
+- Research that informs multiple demos
+
+**Usage:** Before implementing complex features, check both `demo<N>/.docs/research/` and root `.docs/research/` for existing findings. Document new discoveries at the appropriate level based on scope.
 
 ## Extending This Workspace
 
