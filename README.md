@@ -2,11 +2,13 @@
 
 This workspace hosts an incremental set of demos that teach the newest ASP.NET Core Identity capabilities shipping with .NET 10, including passkeys, dual-mode Blazor apps, RBAC, and the BFF security model. Every demo builds directly on the previous one so you can learn by doing without losing context.
 
-## Grounded highlights (Nov 2025)
+## Grounded highlights (Dec 2025)
 
 - **Passkeys everywhere:** ASP.NET Core Identity’s schema version 3 plus the new Blazor Web App template deliver turnkey passkey registration, login, and Manage UI.¹ ²
 - **Out-of-the-box endpoints:** `MapAdditionalIdentityEndpoints` wires `/PasskeyCreationOptions` and `/PasskeyRequestOptions`, so our demos should keep Identity components intact instead of rewriting them.²
 - **Security guardrails:** Microsoft recommends explicit HTTPS, HSTS, and custom origin validation when necessary; we’ll surface those practices in later demos.¹
+- **Documentation enhancements:** Comprehensive `.docs/` folder structure implemented for research, issues, and agent workflows to support AI-driven development.
+- **AI agents integration:** Multi-agent architecture with Research-Agent, Implementation-Agent, and Verifier-Agent for structured .NET 10 feature development.
 
 > ¹ [Enable Web Authentication API (WebAuthn) passkeys](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys/?view=aspnetcore-10.0) · ² [Implement passkeys in ASP.NET Core Blazor Web Apps](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys/blazor?view=aspnetcore-10.0)
 
@@ -30,15 +32,15 @@ dotnet watch
 
 ## Demo Lineup
 
-| Demo  | Focus                                         | Depends On | Highlights                                                               |
-| ----- | --------------------------------------------- | ---------- | ------------------------------------------------------------------------ |
-| demo1 | Identity scaffolding baseline                 | —          | CLI scaffolding, cookie auth foundation                                  |
-| demo2 | Dual-mode diagnostics + Passkeys              | demo1      | Auth state probe, full passkey implementation, WASM caching              |
-| demo3 | BFF APIs + Permission-Based RBAC              | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
-| demo4 | Microsoft Entra ID integration                | demo3      | External provider, Graph API (OBO), inherits permission system           |
-| demo5 | Custom Downstream APIs (Microservices)        | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
-| demo6 | Entra ID claims → Permission mapping          | demo5      | Auto-map Entra groups/roles to local permissions                         |
-| demo7 | Production hardening (multi-identity edition) | demo6      | Secrets, logging, monitoring, HTTPS enforcement                          |
+| Demo  | Status     | Focus                                         | Depends On | Highlights                                                               |
+| ----- | ---------- | --------------------------------------------- | ---------- | ------------------------------------------------------------------------ |
+| demo1 | Completed  | Identity scaffolding baseline                 | —          | CLI scaffolding, cookie auth foundation                                  |
+| demo2 | Completed  | Dual-mode diagnostics + Passkeys              | demo1      | Auth state probe, full passkey implementation, WASM caching              |
+| demo3 | Completed  | BFF APIs + Permission-Based RBAC              | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
+| demo4 | Completed  | Microsoft Entra ID integration                | demo3      | External provider, Graph API (OBO), inherits permission system           |
+| demo5 | Completed  | Custom Downstream APIs (Microservices)        | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
+| demo6 | Planned    | Entra ID claims → Permission mapping          | demo5      | Auto-map Entra groups/roles to local permissions                         |
+| demo7 | Planned    | Production hardening (multi-identity edition) | demo6      | Secrets, logging, monitoring, HTTPS enforcement                          |
 
 ## Demo Details
 
@@ -46,6 +48,7 @@ dotnet watch
 
 - **Goal:** Scaffold a Blazor Web App that keeps Identity cookies valid across Server, Auto, and WASM render modes.
 - **What you'll do:** Run `dotnet new blazor -au Individual`, configure a local connection string, apply `InitialIdentity` migration, and verify login/register flows while toggling render modes.
+- **What's new:** Initial Blazor Web App scaffolding with ASP.NET Core Identity, cookie authentication foundation, and render mode compatibility.
 - **Outcome:** A baseline solution you can reuse for every later demo.
 - **Note:** While demo1 provides the scaffolding, **demo2 becomes the real baseline** with complete passkey implementation and diagnostics that all subsequent demos build upon.
 
@@ -177,8 +180,8 @@ dotnet watch
 
 ## Next Steps
 
-1. Create `demo1` and add its README (`Goal`, `Prerequisites`, `How to Run`).
-2. Duplicate each finished demo forward (`demo1` ➜ `demo2`, `demo2` ➜ `demo3`, …) before adding new capabilities so you always have a working checkpoint.
-3. Validate the Auth State Probe in `demo2` before diving into passkeys in `demo3`; the diagnostics become your baseline for future regressions.
-4. Keep this roadmap updated as new .NET 10 identity features ship (e.g., enriched audit logs or future Identity passkey UX improvements).
+1. Implement `demo6` – Entra ID Claims → Permission Mapping: Create the demo using the copy-demo script, then add automatic role mapping based on Entra ID App Roles.
+2. Implement `demo7` – Production Hardening: Build on demo6 to add secrets management, logging, telemetry, and security hardening for production deployment.
+3. Validate all demos (demo1-demo5) for completeness and alignment with changelog achievements.
+4. Keep this roadmap updated as new .NET 10 identity features ship.
 
