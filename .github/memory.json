@@ -1,0 +1,20 @@
+{"type":"entity","name":"DotNet10DemoWorkspace","entityType":"Project","observations":["Explores .NET 10 features and capabilities","Starting with ASP.NET Core Identity","Incremental demos from demo1 to demo5"]}
+{"type":"entity","name":"Changelog2511","entityType":"Document","observations":["Monthly summary for November 2025"]}
+{"type":"entity","name":"Changelog2512","entityType":"Document","observations":["Monthly summary for December 2025"]}
+{"type":"entity","name":"Achievement","entityType":"Insight","observations":["Built 5 incremental demos showcasing .NET 10 features"]}
+{"type":"entity","name":"NewFeature","entityType":"Insight","observations":["Passkeys in Identity","Blazor InteractiveAuto","Minimal APIs","Entra ID integration","OBO flow"]}
+{"type":"entity","name":"Improvement","entityType":"Insight","observations":["Permission-based authorization","Service abstraction for prerendering DI","Transition from BFF to downstream API"]}
+{"type":"entity","name":"Pattern","entityType":"Insight","observations":["Incremental demo structure","Shared projects (.Shared)","Seeded test users for testing"]}
+{"type":"entity","name":"Trend","entityType":"Insight","observations":["Evolution from basic Identity to complex integrations","Focus on authorization patterns"]}
+{"type":"relation","from":"DotNet10DemoWorkspace","to":"Changelog2511","relationType":"contains"}
+{"type":"relation","from":"DotNet10DemoWorkspace","to":"Changelog2512","relationType":"contains"}
+{"type":"relation","from":"Changelog2511","to":"Achievement","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2511","to":"NewFeature","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2511","to":"Improvement","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2511","to":"Pattern","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2511","to":"Trend","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2512","to":"Achievement","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2512","to":"NewFeature","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2512","to":"Improvement","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2512","to":"Pattern","relationType":"summarizes"}
+{"type":"relation","from":"Changelog2512","to":"Trend","relationType":"summarizes"}
