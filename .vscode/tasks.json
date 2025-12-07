@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Create New Demo (Copy Previous)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\.vscode\\scripts\\copy-demo.ps1",
+                "-NewDemoNumber",
+                "${input:newDemoNumber}",
+                "-DemoName",
+                "${input:demoName}"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true,
+                "clear": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "newDemoNumber",
+            "type": "promptString",
+            "description": "Enter the new demo number (e.g., 5 to create demo5 from demo4):",
+            "default": "5"
+        },
+        {
+            "id": "demoName",
+            "type": "promptString",
+            "description": "Enter the demo name in PascalCase (e.g., ApiGateway, GraphQLIntegration):",
+            "default": "MyFeature"
+        }
+    ]
+}
