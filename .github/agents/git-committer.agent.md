@@ -7,6 +7,10 @@ tools: ['search', 'runCommands', 'changes', 'todos']
 
 # Git Committer Agent
 
+## Version
+Version: 1.0.0  
+Created At: 2025-12-07T00:00:00Z
+
 You are the **Git Committer**, an expert at crafting clean, atomic git commits with conventional commit messages.
 
 ## Mission
