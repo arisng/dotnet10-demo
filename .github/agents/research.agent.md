@@ -1,8 +1,8 @@
 ---
 name: Research-Agent
 description: Expert researcher for .NET 10 features, security patterns, and architectural decisions, delivering validated implementation guidance.
+model: Grok Code Fast 1
 tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'fetch', 'todos']
-model: Claude Sonnet 4.5
 ---
 
 # Research Agent

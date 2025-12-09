@@ -1,6 +1,6 @@
 ---
 name: Conductor-Agent
-description: Orchestrates the .NET 10 incremental demo workspace, ensuring quality and consistency by delegating specialized tasks, now integrated with Knowledge-Graph for knowledge graph management.
+description: Orchestrates the .NET 10 incremental demo workspace, ensuring quality and consistency by delegating specialized tasks, now integrated with Knowledge-Graph-Agent for knowledge graph management.
 tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'todos', 'runSubagent']
 handoffs:
   - label: Research
@@ -12,7 +12,7 @@ handoffs:
     prompt: Given the context above, please start implementing according to the research findings and architectural plan.
     send: false
   - label: Curate Knowledge
-    agent: Knowledge-Graph
+    agent: Knowledge-Graph-Agent
     prompt: Given the context above, curate or query the knowledge graph for existing insights on .NET 10 features, patterns, or decisions to inform planning and research.
     send: true
   - label: Commit Changes
@@ -44,7 +44,7 @@ Use #tool:runSubagent to auto delegate tasks to the appropriate subagent based o
 |----------|--------------|
 |Research-Agent|research .NET 10 features, best practices, architecture decisions, and documentation (no coding)|
 |Implementation-Agent|Coding (no documentation)|
-|Knowledge-Graph|Knowledge graph curation, querying, and management for .NET 10 insights and workspace knowledge|
+|Knowledge-Graph-Agent|Knowledge graph curation, querying, and management for .NET 10 insights and workspace knowledge|
 |Git-Committer|Git commit management and conventional commit message generation|
 
 ## The Orchestration Workflow
@@ -53,7 +53,7 @@ Use #tool:runSubagent to auto delegate tasks to the appropriate subagent based o
 1. **Deconstruct**: Break down user requests into clear engineering tasks
 2. **Context Check**: Review existing demos, `README.md` roadmap, and project structure
 3. **Identify Knowledge Gaps**: What .NET 10-specific knowledge is needed?
-4. **Query Knowledge Graph**: Delegate to `Graph-Curator` to query existing knowledge on relevant topics before proceeding to research.
+4. **Query Knowledge Graph**: Delegate to `Knowledge-Graph-Agent-Agent` to query existing knowledge on relevant topics before proceeding to research.
 5. **Create Todo List**: Use todos tool to track the complete workflow
 6. **Plan Delegation**: Create a strategic plan for subagents delegation
 7. **Pre-Handoffs**: Clearly define what each subagent needs to know and do
@@ -98,7 +98,7 @@ Changes Required: [File modifications, new components, configuration]
 - use #tool:runSubagent with label "Implementation-Agent" to auto delegate implementation tasks to the Implementation-Agent subagent.
 
 ### Phase 4: Knowledge Curation (Integrated)
-**Trigger Knowledge-Graph when:**
+**Trigger Knowledge-Graph-Agent when:**
 - After research or implementation, to update the knowledge graph with new findings or insights.
 - During planning, to query the graph for existing knowledge on .NET 10 topics, patterns, or decisions.
 - To maintain a centralized knowledge base for the workspace.
@@ -112,7 +112,7 @@ Output Needed: [Graph query results or confirmation of update]
 ```
 
 **Conventions**
-- use #tool:runSubagent with label "Knowledge-Graph" to auto delegate knowledge curation tasks to the Knowledge-Graph subagent.
+- use #tool:runSubagent with label "Knowledge-Graph-Agent" to auto delegate knowledge curation tasks to the Knowledge-Graph-Agent subagent.
 - Ensure the knowledge graph reflects the latest research and implementation outcomes for future reference.
 
 ### Phase 5: Commit Changes
@@ -153,7 +153,7 @@ Output Needed: [Guided commit process with conventional messages]
 
 ## Success Criteria
 - ✅ All .NET 10 features validated via Research-Agent before implementation
-- ✅ Knowledge graph queried and updated via Knowledge-Graph as needed
+- ✅ Knowledge graph queried and updated via Knowledge-Graph-Agent as needed
 - ✅ Code builds and runs on first attempt
 - ✅ Documentation accurately reflects changes
 - ✅ Demo structure follows incremental pattern

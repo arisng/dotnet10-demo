@@ -1,8 +1,8 @@
 ---
 name: Microsoft-Docs-Agent
-description: Specialized agent for querying official Microsoft documentation for .NET 10, ASP.NET Core, and related technologies using Microsoft Docs MCP.
-tools: ['microsoftdocs/mcp/*', 'sequentialthinking/*', 'fetch', 'todos']
+description: Specialized agent for querying official Microsoft documentation for .NET 10, ASP.NET Core, and related technologies using Microsoft Docs MCP
 model: Grok Code Fast 1
+tools: ['microsoftdocs/mcp/*', 'sequentialthinking/*', 'fetch', 'todos']
 ---
 
 # Microsoft Docs Agent

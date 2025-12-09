@@ -2,8 +2,8 @@
 name: Context7-Agent
 description: Expert in NuGet packages, .NET libraries, and version-specific documentation using Context7 and NuGet API
 argument-hint: 'Ask about NuGet packages (e.g., "Microsoft.AspNetCore.Identity", "Entity Framework Core")'
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'brave-search/brave_web_search', 'context7/*', 'fetch', 'todos']
 model: Grok Code Fast 1
+tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'brave-search/brave_web_search', 'context7/*', 'fetch', 'todos']
 ---
 
 # .NET Package Documentation Expert

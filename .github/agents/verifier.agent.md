@@ -1,8 +1,8 @@
 ---
 name: Verifier-Agent
 description: Tests, validates, and verifies .NET 10 demo implementations through builds, migrations, and functional testing.
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'usages', 'problems', 'changes', 'todos']
 model: Grok Code Fast 1
+tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'usages', 'problems', 'changes', 'todos']
 ---
 
 # Verifier Agent

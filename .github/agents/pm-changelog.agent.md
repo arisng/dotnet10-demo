@@ -21,14 +21,14 @@ Transform raw weekly developer changelogs into polished monthly summaries that h
 
 ## Knowledge Graph Integration
 
-Use #tool:runSubagent with label "Graph-Curator" to invoke this sub-agent to persist and retrieve business domain knowledge. This enables:
+Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to persist and retrieve business domain knowledge. This enables:
 
 - **Consistent terminology**: Reuse established friendly names for scopes/features
 - **Historical context**: Understand feature evolution across months
 - **Relationship awareness**: Know how modules relate to each other
 - **Stakeholder preferences**: Remember what resonates with your audience
 
-### When to Invoke Graph-Curator
+### When to Invoke Knowledge-Graph-Agent
 
 | Trigger | Action | Purpose |
 |---------|--------|---------|
@@ -68,14 +68,14 @@ StakeholderRelevance: "High"
 
 **1. Retrieve existing domain knowledge before summarizing:**
 ```
-Use #tool:runSubagent with label "Graph-Curator" to invoke this sub-agent to:
+Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Retrieve all Module entities and their FriendlyName observations.
 Also retrieve any relations between modules to understand dependencies."
 ```
 
 **2. Persist a newly discovered scope:**
 ```
-Use #tool:runSubagent with label "Graph-Curator" to invoke this sub-agent to:
+Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Create entity: Module named 'QuizModule' with observations:
 - FriendlyName: '❓ Quiz System'
 - BusinessValue: 'Interactive assessment and knowledge testing'
@@ -85,7 +85,7 @@ Create relation: QuizModule belongsTo LearningPlatform"
 
 **3. Track feature evolution:**
 ```
-Use #tool:runSubagent with label "Graph-Curator" to invoke this sub-agent to:
+Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Add observation to AuthModule:
 - EnhancedIn: '2025-10'
 - Enhancement: 'Microsoft Entra ID auto-sync'
@@ -94,11 +94,11 @@ Create relation: EntraIDSync belongsTo AuthModule"
 
 ## Workflow
 
-### Step 0: Retrieve Domain Knowledge (Graph-Curator)
-**Before processing changelogs**, invoke Graph-Curator to retrieve existing domain knowledge:
+### Step 0: Retrieve Domain Knowledge (Knowledge-Graph-Agent)
+**Before processing changelogs**, invoke Knowledge-Graph-Agent to retrieve existing domain knowledge:
 
 ```
-Use #tool:runSubagent with label "Graph-Curator" to invoke this sub-agent to:
+Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Retrieve all Module entities with their FriendlyName and BusinessValue observations.
 Also retrieve aliasOf relations for scope-to-friendly-name mappings."
 ```
@@ -121,9 +121,9 @@ Determine which ISO 8601 weeks (Monday start) fall within the current month. **O
 - Skip the current week if it hasn't ended yet
 
 ### Step 3: Search for Raw Changelog Files
-Search in `_docs/changelogs/` for files matching pattern `w[weekNumber]_raw.md` (e.g., `w44_raw.md`, `w45_raw.md`).
+Search in `.docs/changelogs` for files matching pattern `w[weekNumber]_raw.md` (e.g., `w44_raw.md`, `w45_raw.md`).
 
-Use `search` or `codebase` tools to find available weekly changelog files.
+Use `#tool:search` or `#tool:codebase` tools to find available weekly changelog files.
 
 ### Step 4: Read and Parse Changelogs
 For each found weekly file within the target month's weeks:
@@ -135,10 +135,10 @@ For each found weekly file within the target month's weeks:
 
 **5a. Apply existing knowledge** from Step 0 for known scopes.
 
-**5b. For NEW scopes not in the graph**, invoke Graph-Curator to persist:
+**5b. For NEW scopes not in the graph**, invoke Knowledge-Graph-Agent to persist:
 
 ```
-Use #tool:runSubagent with label "Graph-Curator" to invoke this sub-agent to:
+Use #tool:runSubagent with label "Knowledge-Graph-Agent" to invoke this sub-agent to:
 "Create entity: Module named '[NewScopePascalCase]' with observations:
 - TechnicalScope: '[original-scope-name]'
 - FriendlyName: '[emoji] [Human Readable Name]'
@@ -190,7 +190,7 @@ When using fallback defaults, **persist them to the graph** for future consisten
 
 ### Step 6: Generate Monthly Summary
 
-**Output file:** `_docs/changelogs/yymm-summary.md` (e.g., `2512-summary.md` for December 2025)
+**Output file:** `.docs/changelogs/yymm-summary.md` (e.g., `2512-summary.md` for December 2025)
 
 **Structure:**
 
@@ -236,12 +236,12 @@ When using fallback defaults, **persist them to the graph** for future consisten
 *This summary covers completed weeks only. Additional updates may be added as the month progresses.*
 ```
 
-### Step 7: Persist Changelog Record (Graph-Curator)
+### Step 7: Persist Changelog Record (Knowledge-Graph-Agent)
 
-After generating the summary, invoke Graph-Curator to record this changelog and its key features:
+After generating the summary, invoke Knowledge-Graph-Agent to record this changelog and its key features:
 
 ```
-Invoke Graph-Curator:
+Invoke Knowledge-Graph-Agent:
 "Create entity: ChangelogMonth named 'Changelog_[YYMM]' with observations:
 - Month: '[Month Year]'
 - WeeksCovered: '[X]-[Y]'
@@ -305,7 +305,7 @@ Anh Nguyen | 2025-10-29 | feat(auth): improve Microsoft Entra ID email extractio
 
 ## Final Checklist Before Output
 
-- [ ] Retrieved existing domain knowledge from Graph-Curator
+- [ ] Retrieved existing domain knowledge from Knowledge-Graph-Agent
 - [ ] Verified current month and completed weeks
 - [ ] Found and read all available raw changelog files for those weeks
 - [ ] Filtered out purely technical commits
