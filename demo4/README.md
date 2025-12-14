@@ -487,7 +487,7 @@ Demo4 inherits .NET 10 authorization metrics from demo3:
 **Demo5** introduces a separate downstream API service and contrasts two security patterns:
 
 1. **BFF Pattern (Cookie):** Current `/api/weather`, `/api/users`, `/api/reports` endpoints
-2. **Downstream API Pattern (Bearer Token):** New `Demo5.ProtectedApi` project secured with Entra ID access tokens
+2. **Downstream API Pattern (Bearer Token):** New `Demo5.DownstreamApi.WeatherApi` project secured with Entra ID access tokens
 
 You'll implement the On-Behalf-Of (OBO) flow to call a custom protected API from the Blazor app, demonstrating microservice authentication.
 

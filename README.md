@@ -116,7 +116,7 @@ dotnet watch
 
 - **Goal:** Create a standalone protected API service and consume it from the Blazor app using Entra ID tokens, contrasting the "BFF" (Cookie) vs. "Downstream" (Token) architectures.
 - **What's new:**
-  - **New Project:** `Demo5.ProtectedApi` (ASP.NET Core Minimal API) running on a separate port
+  - **New Project:** `Demo5.DownstreamApi.WeatherApi` (ASP.NET Core Minimal API) running on a separate port
   - **API Security:** Configure `AddMicrosoftIdentityWebApi` to validate Bearer tokens
   - **Entra Configuration:**
     - Expose an API in Entra ID (App ID URI)

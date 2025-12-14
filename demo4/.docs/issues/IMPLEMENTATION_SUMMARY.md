@@ -309,7 +309,7 @@ User signs in → Entra issues ID token → App validates token
 ## Next Steps (Demo5 Preview)
 
 Demo5 will introduce:
-- **Separate Downstream API Project:** `Demo5.ProtectedApi`
+- **Separate Downstream API Project:** `Demo5.DownstreamApi.WeatherApi`
 - **Bearer Token Authentication:** API secured with JWT tokens from Entra
 - **OBO Flow for Custom APIs:** Exchange user token for downstream API token
 - **BFF vs Downstream Comparison:** Demonstrate both patterns side-by-side
