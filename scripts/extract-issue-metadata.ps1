@@ -1,7 +1,17 @@
 # Extract Issue Metadata and Generate Report Table
 
+# Resolve script's directory and workspace root
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$workspaceRoot = Split-Path -Parent $scriptDir
+
 # Path to the issues folder
-$issuesPath = "../_docs/issues"
+$issuesPath = Join-Path $workspaceRoot ".docs/issues"
+
+# Verify issues folder exists
+if (-not (Test-Path $issuesPath)) {
+    Write-Error "Issues folder not found at: $issuesPath"
+    exit 1
+}
 
 # Get all .md files in the issues folder
 $files = Get-ChildItem -Path $issuesPath -Filter "*.md" | Where-Object { $_.Name -ne "index.md" }
@@ -154,8 +164,8 @@ foreach ($item in $report | Sort-Object Date -Descending) {
     $outputLines += "| $($item.File) | $($item.Date) | $($item.Type) | $($item.Status) | $($item.Severity) | $($item.Format) |"
 }
 
-# Output to a markdown file in the _docs/issues folder
-$outputPath = "../_docs/issues/index.md"
+# Output to a markdown file in the .docs/issues folder
+$outputPath = Join-Path $issuesPath "index.md"
 $outputLines | Out-File -FilePath $outputPath -Encoding UTF8
 
 Write-Host "`nReport generated at $outputPath" -ForegroundColor Cyan
