@@ -1,89 +1,183 @@
-# .NET 10 Workshop - AI Agent Instructions
+# .NET 10 demos — Copilot coding-agent notes
 
-## Workspace Scope
+## Overview & Scope
 
-This workspace explores **.NET 10 features and capabilities**, starting with ASP.NET Core Identity as the foundation. While Identity (passkeys, BFF pattern, Entra ID) is the entry point, demos may expand to cover any .NET 10 topic—prioritizing features directly connected to .NET 10, but not limited to them.
+This repository is a **progressive workshop** demonstrating modern .NET 10 patterns across 6 incremental demos:
 
-**Current focus areas:** Identity, Blazor InteractiveAuto, Minimal APIs, authorization patterns, Entra ID integration.
+| Demo | Focus | Key Patterns |
+|------|-------|--------------|
+| **demo1** | Identity Foundation | ASP.NET Core Identity, Bootstrap integration |
+| **demo2** | Dual-Mode Handoff (Baseline) | Blazor Server ↔ WASM transition, prerender-safe DI |
+| **demo3** | BFF + RBAC | Permission-based authorization, role-permission junction table |
+| **demo4** | Entra ID Integration | OBO flow, Microsoft Graph, enterprise auth |
+| **demo5** | Downstream API | Server-to-server communication, protected scopes |
+| **demo6** | Greenfield ↔ Legacy | Integration patterns between modern and legacy systems |
 
-## Architecture Overview
+**Key assumption:** demo2 is the baseline—all subsequent demos build on demo2's architecture.
 
-This is an **incremental demo workspace** where each `demo<N>` folder builds on the previous—**demo2 is the real baseline** (not demo1).
+## Workshop Project Structure
 
-### Project Structure Pattern (demo3+)
+Standard layout for demos 3+:
+
 ```
 demo<N>/
-├── Demo<N>.<Name>/           # Server project (Blazor, APIs, Identity)
-├── Demo<N>.<Name>.Client/    # WASM client project
-├── Demo<N>.<Name>.Shared/    # Shared models/interfaces
-└── README.md
+├── .docs/                      # Demo-specific documentation
+│   ├── issues/                 # Demo-specific issue investigations
+│   └── research/               # Demo-specific implementation notes
+├── Demo<N>.<Name>/             # Server (Blazor Server, APIs, Identity)
+├── Demo<N>.<Name>.Client/      # Client (Blazor WASM, prerendered)
+├── Demo<N>.<Name>.Shared/      # Shared DTOs, models, interfaces
+└── README.md                   # Demo-specific walkthrough
 ```
 
-### Key Data Flow (Identity demos)
-```
-User Auth (Passkey/Entra) → IClaimsTransformation (adds permission claims) 
-  → PermissionAuthorizationHandler → API endpoints via .RequirePermission()
-```
+## Creating a New Demo
 
-## Critical Patterns
+### Quick Start
 
-### Service Abstraction (Prerendering DI)
-WASM components work in both server prerender and client modes via interface abstraction:
-```csharp
-// Shared: IWeatherService interface
-// Client: ClientWeatherService (uses HttpClient → /api/weather)
-// Server: ServerWeatherService (direct DB access)
-```
-Register in `Program.cs`: Server uses `Server*` implementations; Client uses `Client*`.
+Use the VS Code task:
+1. `Tasks: Run Task` → "Create New Demo (Copy Previous)"
+2. Enter demo number and name (PascalCase)
+3. Task auto-copies `demo<n-1>` → `demo<n>`, renames namespaces, cleans build artifacts
 
-### Permission-Based Authorization
-- Roles aggregate to permissions via `RolePermission` junction table
-- `PermissionClaimsTransformation` adds `permission` claims on each request
-- API endpoints: `.RequirePermission("weather.read")` (see `Authorization/AuthorizationExtensions.cs`)
-- Named policies in `Program.cs` for Blazor `[Authorize(Policy="weather.read")]`
+### Manual Script Approach
 
-### BFF vs Downstream API
-- **BFF (demo3-4):** APIs in same project, cookie auth, no CORS
-- **Downstream (demo5):** Separate `ProtectedApi` project on port 7220, Bearer tokens, OBO flow
-
-## Developer Workflows
-
-### Create New Demo
-Use VS Code task: `Tasks: Run Task` → "Create New Demo (Copy Previous)"
-Or: `.vscode/scripts/copy-demo.ps1 -NewDemoNumber 6 -DemoName MyFeature`
-
-### Run Any Demo
 ```powershell
-cd demo<N>/Demo<N>.<Name>
+scripts/copy-demo.ps1 -NewDemoNumber <n> -DemoName <PascalCase>
+```
+
+### Post-Copy Steps
+
+1. Update namespaces to match new project name exactly
+2. Update `demo<n>/README.md` with goal, prerequisites, and what's new
+3. Update root `README.md` demo table with new demo entry
+4. Test the build: `dotnet build demo<n>/Demo<n>.<Name>.slnx`
+
+### Namespace Convention
+
+- Namespace follows project name exactly: `Demo<N>.<Name>` → `namespace Demo<N>.<Name>;`
+- Permissions use lowercase dot-notation: `weather.read`, `users.delete`, `forecast.write`
+
+## Authentication & Authorization Patterns
+
+### Identity Foundation (demo1+)
+
+- **Auth Method:** ASP.NET Core Identity cookie-based authentication
+- **Schema Version:** Must use `IdentitySchemaVersions.Version3` for passkey support (demo3+, demo5)
+- **Endpoints:** Keep `app.MapAdditionalIdentityEndpoints()` to wire passkey endpoints and `/Account/*` pages
+- **Default Users (demo3+):**
+  | Email | Password | Role |
+  |-------|----------|------|
+  | admin@local.app | Admin123! | Admin |
+  | manager@local.app | Manager123! | Manager |
+  | user@local.app | User123! | User |
+
+### Permission-Based RBAC (demo3+)
+
+**Data Model:**
+- Role → Permissions via junction table (`Data/RolePermission.cs`)
+- Permissions seeded in `Data/DbSeeder.cs`
+
+**Request Flow:**
+```
+HTTP Request
+  ↓
+IClaimsTransformation (adds "permission" claims)
+  ↓
+PermissionAuthorizationHandler (enforces PermissionRequirement)
+  ↓
+Minimal API / Controller returns response
+```
+
+**Implementation Checklist** when adding a new permission:
+1. Add to seed data in `Data/DbSeeder.cs`
+2. Add server policy in `Program.cs`: `AddAuthorizationBuilder().AddPolicy("...", ...)`
+3. Add client policy in `.Client/Program.cs`: `AddAuthorizationCore()` requires the `permission` claim
+4. Reference in minimal APIs: `.RequirePermission("...")`  (see `Authorization/AuthorizationExtensions.cs`)
+5. Reference in Razor components: `<AuthorizeView Resource="..." Action="...">`
+
+### Entra ID Integration (demo4+)
+
+- **Protocol:** OpenID Connect (OIDC) with Microsoft Identity Web
+- **Token Flow:** OAuth 2.0 Authorization Code flow with PKCE
+- **OBO (On-Behalf-Of):** Used to call Microsoft Graph and downstream APIs with user's delegated permissions
+- **Downstream APIs:** Protected with `AddMicrosoftIdentityWebApi()`, validate Bearer tokens and scopes
+
+## Blazor Architecture & DI
+
+### Prerender-Safe Service Abstraction
+
+Routable components inject shared interfaces, not implementations:
+
+**Interface Definition** (`.Client/Services/IAppServices.cs`):
+```csharp
+public interface IWeatherService { ... }
+public interface IUserService { ... }
+```
+
+**Server Registration** (`Program.cs`):
+```csharp
+builder.Services.AddScoped<IWeatherService, ServerWeatherService>();
+builder.Services.AddScoped<IUserService, ServerUserService>();
+```
+
+**Client Registration** (`.Client/Program.cs`):
+```csharp
+builder.Services.AddScoped<IWeatherService, ClientWeatherService>();
+builder.Services.AddScoped<IUserService, ClientUserService>();
+```
+
+**Why:**
+- Prerender phase runs on server (uses `ServerWeatherService`)
+- Interactive phases on WASM (uses `ClientWeatherService` + `HttpClient`)
+- Single component code works in both contexts
+
+### Blazor Interactivity (InteractiveAuto)
+
+- **First Visit:** 4 phases (SSR → SignalR handshake → WASM init → WASM render)
+- **Cached Visit:** 3 phases (skip WASM init if already cached)
+- **Caching Headers:** `max-age=31536000` in published mode; `max-age=0` in dev
+- **Static Web Assets:** Non-dev needs `StaticWebAssetsLoader.UseStaticWebAssets()` for `.Client` assets
+
+## Server Communication
+
+### BFF (Backend-for-Frontend) Pattern (demo3+)
+
+- Server provides `/api/*` endpoints for client WASM to call
+- All cross-origin auth handled on server (cookies are httpOnly)
+- Minimal APIs use `RequireAuthorization()` and permission policies
+
+### Server-to-Server Communication (demo5)
+
+**Pattern:**
+- BFF calls downstream API via `IDownstreamApi` service
+- Uses OBO (On-Behalf-Of) flow to exchange user token for downstream token
+- Downstream API validates Bearer tokens via `AddMicrosoftIdentityWebApi()`
+
+**Example (demo5):**
+```
+BFF /api/downstream-weather
+  ↓
+IDownstreamApi.GetForecastAsync()
+  ↓
+POST https://localhost:7220/api/forecast (with Bearer token)
+  ↓
+DownstreamApi validates token + "Forecast.Read" scope
+```
+
+## Port Conventions
+
+- **Main App:** `https://localhost:7<N>10` (+ `http://localhost:5<N>10`) via `Properties/launchSettings.json`
+- **demo5 Downstream API:** `https://localhost:7220` (+ `http://localhost:5220`)
+
+**Example Dev Loop:**
+```bash
+cd demo5/Demo5.DownstreamApi
 dotnet ef database update
 dotnet watch
+# In another terminal:
+cd demo5/Demo5.DownstreamApi.WeatherApi
+dotnet watch
 ```
-All demos run on `https://localhost:7210`. Demo5's ProtectedApi runs on `https://localhost:7220`.
-
-### Seeded Test Users (demo3+)
-| Email | Password | Role |
-|-------|----------|------|
-| admin@local.app | Admin123! | Admin |
-| manager@local.app | Manager123! | Manager |
-| user@local.app | User123! | User |
-
-## Naming Conventions
-
-- Solution: `Demo<N>.<PascalCaseName>.slnx`
-- Projects: `Demo<N>.<Name>`, `Demo<N>.<Name>.Client`, `Demo<N>.<Name>.Shared`
-- Namespace follows project name exactly
-- Permissions: lowercase dot-notation (`weather.read`, `users.delete`)
-
-## Key Files Reference
-
-| Purpose | Location (demo3+ pattern) |
-|---------|--------------------------|
-| Auth flow | `Authorization/PermissionClaimsTransformation.cs` |
-| Permission handler | `Authorization/PermissionAuthorizationHandler.cs` |
-| API extension | `Authorization/AuthorizationExtensions.cs` |
-| Service interfaces | `*.Client/Services/IAppServices.cs` |
-| Data seeding | `Data/DbSeeder.cs` |
-| Identity config | `Program.cs` (SchemaVersion3 for passkeys) |
 
 ## .NET 10 Framework Notes
 
@@ -135,12 +229,4 @@ demo<N>/
 - Workspace-wide tooling or infrastructure issues
 - Research that informs multiple demos
 
-**Usage:** Before implementing complex features, check both `demo<N>/.docs/research/` and root `.docs/research/` for existing findings. Document new discoveries at the appropriate level based on scope.
-
-## Extending This Workspace
-
-When adding demos for new .NET 10 topics beyond Identity:
-1. Build incrementally from the latest demo when the topic connects naturally
-2. Create a standalone demo branch if the topic is unrelated to prior demos
-3. Update root `README.md` demo lineup table with focus, dependencies, and highlights
-4. Follow existing naming conventions: `Demo<N>.<TopicName>`
+**Usage:** Consulting both `demo<N>/.docs/research/` and root `.docs/research/` for orientation on what's next to implement. Document new discoveries at the appropriate level based on scope.
