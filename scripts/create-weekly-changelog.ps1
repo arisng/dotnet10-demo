@@ -10,7 +10,8 @@ if (-not $SinceDate -and -not $UntilDate) {
   $daysToMonday = (([int]$t.DayOfWeek - [int][System.DayOfWeek]::Monday) + 7) % 7
   $monday = $t.AddDays(-$daysToMonday).Date
   $sunday = $monday.AddDays(6)
-} else {
+}
+else {
   $monday = [datetime]::Parse($SinceDate)
   $sunday = [datetime]::Parse($UntilDate)
 }
@@ -33,7 +34,8 @@ $endLabel = $sunday.ToString("dd")
 $rangeLabel = "$startLabel-$endLabel, Week $week, $year"
 if ($OutputStructure -eq "raw") {
   $header = "# Raw Changelog: $rangeLabel`n`n## Commits`n`n"
-} else {
+}
+else {
   $header = "# Changelog: $rangeLabel`n`n### Added`n`n### Changed`n`n### Fixed`n`n"
 }
 
@@ -44,7 +46,8 @@ $until = $sunday.ToString("yyyy-MM-dd") + " 23:59:59"
 # Exclude commits that modify the changelog files themselves and those mentioning changelog in the commit message (case-insensitive)
 if ($OutputStructure -eq "raw") {
   $format = "%an | %ad | %B"
-} else {
+}
+else {
   $format = "%an | %ad | %s"
 }
 $gitArgs = @("log", "--since=$since", "--until=$until", "--pretty=format:$format", "--date=short", "--", ".", ":(exclude)_docs/changelogs")
@@ -54,7 +57,8 @@ $commits = & git @gitArgs 2>$null | Where-Object { $_ -notmatch "(?i)changelog" 
 # Build content
 if (-not $commits -or $commits.Count -eq 0) {
   $content = $header + "`nNo changes found for this period.`n"
-} else {
+}
+else {
   $content = $header + ($commits -join "`n") + "`n"
 }
 
