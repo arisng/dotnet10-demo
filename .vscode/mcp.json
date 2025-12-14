@@ -7,7 +7,7 @@
                 "-i",
                 "--rm",
                 "-v",
-                "C:/Workplace/Demo/dotnet10-demo/demo2/Demo2.DualModeHandoff/Demo2.DualModeHandoff/Data:/mcp",
+                "${workspaceFolder}/demo2/Demo2.DualModeHandoff/Demo2.DualModeHandoff/Data:/mcp",
                 "mcp/sqlite",
                 "--db-path",
                 "/mcp/app.db"
