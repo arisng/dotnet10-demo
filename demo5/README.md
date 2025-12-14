@@ -14,6 +14,56 @@ For detailed explanations of the concepts in this demo, see [ARCHITECTURE_DEEP_D
 
 This README focuses on getting the demo running. Read the architecture guide for deeper understanding.
 
+## Glossary
+
+### Key Terms in Demo5 Context
+
+| Term               | Definition                                                                                                                                                                             | Example in Demo5                                                                                               | Contrast                                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Downstream API** | An API called by the application (BFF) on behalf of the user or client. The application makes outbound calls to fetch data or perform operations.                                      | `Demo5.DownstreamApi.WeatherApi` (port 7220) is a downstream API called by the BFF app (port 7210).            | **Upstream API**: The API that receives calls (rare perspective in client-server architecture).                |
+| **Private API**    | An API designed for internal use only, with no public access. Typically protected by authentication and authorization. Consumed by specific applications under organizational control. | `Demo5.DownstreamApi.WeatherApi` is private—only the Blazor BFF can call it. Not accessible from the internet. | **Public API**: Open to external developers/applications (e.g., Twitter API, GitHub API).                      |
+| **Internal API**   | An API owned and operated by the same organization, running within your infrastructure or cloud environment.                                                                           | `Demo5.DownstreamApi.WeatherApi` is internal—developed and maintained by the same team running the Blazor app. | **External API**: Provided by third-party vendors or SaaS providers (e.g., Microsoft Graph, Stripe, SendGrid). |
+| **External API**   | An API provided by a third-party service or SaaS provider outside your organization.                                                                                                   | Microsoft Graph (user profile data) is external—Microsoft owns and operates it.                                | **Internal API**: Owned by your organization.                                                                  |
+| **SaaS API**       | A Software-as-a-Service API provided by a cloud vendor. The vendor manages hosting, scaling, security, and uptime. Accessed via HTTPS with API keys, OAuth tokens, or credentials.     | Microsoft Graph is a SaaS API—Microsoft manages all infrastructure, updates, and availability.                 | **On-Premises API**: API you host and maintain on your own servers.                                            |
+
+### Essential Authentication & Authorization Terms
+
+| Term               | Definition                                                                                                                                                                                      | Example in Demo5                                                                                                                             | Related Terms                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Bearer Token**   | A token (usually JWT) sent in the HTTP `Authorization` header with the format `Bearer <token>`. The API validates this token to authorize requests.                                            | WeatherApi validates Bearer tokens from the BFF to confirm the caller has `Forecast.Read` scope.                                           | Access Token, JWT, OAuth Token                                      |
+| **JWT (JSON Web Token)** | A cryptographically signed token containing claims (user info, permissions, scopes). Human-readable (base64-encoded) and self-validating without a database lookup. Format: `header.payload.signature`. | Entra ID issues JWTs for both the BFF and downstream API calls. Inspect at https://jwt.ms to see claims like `oid`, `scp`, `aud`.            | Claims, Token Claims, Signature                                     |
+| **OAuth Scope**    | A permission label defining what an application can do on behalf of a user. Scopes are requested during login; users grant consent. Enforced by the API.                                         | `Forecast.Read` scope lets the Blazor app call WeatherApi. User grants consent once; BFF uses it for subsequent calls.                      | Permission, Delegation, Consent                                     |
+| **OBO (On-Behalf-Of) Flow** | An OAuth pattern where the application exchanges the user's token for a new token scoped for a downstream API, maintaining user identity across service boundaries.                              | BFF receives user's Entra ID token, exchanges it with Entra ID for a **delegated access token** scoped to WeatherApi. WeatherApi validates the token and sees the user's identity.       | Token Exchange, Delegation Flow, Confidential Client                |
+| **Client Credentials Flow** | An OAuth pattern for service-to-service communication where an application authenticates using client ID and client secret, without user involvement. Results in an app-only access token.       | Not used in demo5. Example: a scheduled job service calling WeatherApi without user context would use client credentials flow with app-only token.  | App-Only Access Token, OAuth Grant, Service Account                 |
+| **IDownstreamApi** | Microsoft.Identity.Web service that automates token acquisition, caching, and refresh for calling downstream APIs. Handles OBO flow transparently.                                             | `IDownstreamApi.GetForUserAsync<T>("WeatherApi", ...)` retrieves user profile data with automatic Bearer token attachment.                  | Token Acquisition, ITokenAcquisition                                |
+| **Audience (aud)** | A JWT claim identifying the intended recipient of the token. APIs validate that the `aud` matches their own identity to prevent token misuse.                                                  | WeatherApi expects tokens with `aud: api://[api-client-id]`. Tokens for other APIs (e.g., Graph) are rejected.                             | Token Validation, JWT Claims                                        |
+| **Delegated Access Token** | An access token issued for a specific API resource, acquired on behalf of a user via OBO flow. Contains the user's identity and the granted scopes. Expires after ~1 hour.                  | BFF exchanges the user's Entra ID token for a delegated access token scoped to WeatherApi (`api://[api-client-id]`).                     | Resource Access Token, Downstream Access Token, App-Only Token      |
+| **Resource Access Token** | A generic OAuth term for an access token scoped to a specific API/resource (as opposed to an ID token or refresh token). Validates what API the token can be used with via the `aud` claim. | The token the BFF sends to WeatherApi is a resource access token—it's scoped only to that API, not usable for Microsoft Graph.             | Delegated Access Token, Audience, Scope                             |
+| **App-Only Access Token** | An access token issued for application-to-application communication without user involvement. Uses client credentials flow instead of OBO. No user identity in the token.                      | Not used in demo5. Example: a background service calling WeatherApi without user context would use app-only flow.                          | Client Credentials Flow, Service-to-Service, Confidential Client    |
+
+### Advanced Authentication Concepts
+
+| Term                    | Definition                                                                                                                                                                              | Example in Demo5                                                                                                                           | Why It Matters                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **Token Caching**       | Storing acquired tokens in memory or distributed cache to avoid repeated token acquisition requests. Improves performance and reduces authentication server load.                         | `AddInMemoryTokenCaches()` caches tokens so the BFF doesn't ask Entra ID for a new token on every WeatherApi call.                        | Performance, reduced latency, fewer auth requests                   |
+| **Token Refresh**       | Automatically exchanging an expired or expiring refresh token for a new access token without user interaction. Enables long-running sessions.                                            | When the BFF's token for WeatherApi expires (1 hour), `IDownstreamApi` automatically refreshes it using the refresh token.                | Seamless user experience, maintains authenticated sessions            |
+| **Confidential Client** | An application that can securely store client secrets (e.g., server-side apps). Allowed to use grant flows requiring credentials like authorization code or OBO.                         | The Blazor BFF is a confidential client—it runs on a server and can safely store the client secret for Entra ID.                           | Security, enables OBO flow, higher trust from identity provider      |
+| **Public Client**       | An application that cannot securely store secrets (e.g., browser-based WASM, mobile apps). Uses PKCE (Proof Key for Code Exchange) for security.                                       | Blazor WebAssembly is a public client—tokens stored in browser cannot be protected, so direct API calls are less secure than BFF pattern.  | Mobile/browser apps, implicit trust model                           |
+| **Claims Transformation** | A middleware/handler that extracts claims from a token and enriches them with application-specific data (e.g., role, permission mappings). Runs on each request.                        | `PermissionClaimsTransformation` reads user roles from the database and adds `permission` claims for authorization decisions.              | RBAC mapping, fine-grained authorization, decouples auth from policy |
+| **Token Validation**    | The process of cryptographically verifying a token's signature, expiration, audience, and issuer. Ensures the token was issued by a trusted authority and hasn't been tampered with.   | WeatherApi validates incoming Bearer tokens: checks signature (valid issuer), expiration, and audience (`api://[client-id]`).             | Security, prevents token spoofing, ensures token integrity           |
+| **CORS (Cross-Origin Resource Sharing)** | A browser security mechanism allowing/restricting HTTP requests from one origin to another. Controlled by server-side headers. Server-to-server calls bypass CORS.                     | WeatherApi has NO CORS configured because it's called server-to-server (BFF → API), not from browser. CORS only applies to browser requests. | Frontend security, prevents unauthorized browser-based API calls     |
+| **BFF Pattern (Backend for Frontend)** | Architecture where a server-side backend handles authentication, token management, and serves tailored APIs to a frontend client. Frontend never holds tokens. Recommended for security. | Demo5's architecture: Browser → BFF (port 7210, holds tokens) → WeatherApi (port 7220, validates tokens). Browser doesn't see tokens.     | Security (XSS protection), centralized auth, token confidentiality   |
+
+### Demo5 Architecture in Glossary Terms
+
+Demo5 demonstrates calling **two downstream APIs**:
+1. **Microsoft Graph** (external, SaaS, private) - Private SaaS service from Microsoft
+2. **Demo5.DownstreamApi.WeatherApi** (internal, private) - Your own weather API
+
+Both are **private APIs** (authentication required), but their **ownership** differs:
+- **Internal ownership**: WeatherApi (you build/operate it)
+- **External ownership**: Microsoft Graph (Microsoft builds/operates it)
+
 ## Prerequisites
 
 - demo4 completed and working
@@ -69,7 +119,7 @@ This README focuses on getting the demo running. Read the architecture guide for
 }
 ```
 
-**API Project** (`Demo5.ProtectedApi/appsettings.json`):
+**API Project** (`Demo5.DownstreamApi.WeatherApi/appsettings.json`):
 ```json
 "AzureAd": {
   "Instance": "https://login.microsoftonline.com/",
@@ -94,7 +144,7 @@ dotnet ef database update
 
 Open a terminal:
 ```powershell
-cd demo5/Demo5.ProtectedApi
+cd demo5/Demo5.DownstreamApi.WeatherApi
 dotnet watch
 ```
 
@@ -122,7 +172,7 @@ Expected output: App running on `https://localhost:7210`
 
 ## What's New
 
-### New Project: Demo5.ProtectedApi
+### New Project: Demo5.DownstreamApi.WeatherApi
 
 - Standalone ASP.NET Core Minimal API running on port 7220
 - Configured with `AddMicrosoftIdentityWebApi` for Bearer token validation

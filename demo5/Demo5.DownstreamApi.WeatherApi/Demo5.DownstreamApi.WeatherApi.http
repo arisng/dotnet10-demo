@@ -1,0 +1,6 @@
+@Demo5.DownstreamApi.WeatherApi_HostAddress = http://localhost:5233
+
+GET {{Demo5.DownstreamApi.WeatherApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

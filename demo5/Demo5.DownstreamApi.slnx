@@ -4,8 +4,8 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="Demo5.DownstreamApi/Demo5.DownstreamApi.csproj" />
   <Project Path="Demo5.DownstreamApi.Client/Demo5.DownstreamApi.Client.csproj" />
   <Project Path="Demo5.DownstreamApi.Shared/Demo5.DownstreamApi.Shared.csproj" />
-  <Project Path="Demo5.DownstreamApi/Demo5.DownstreamApi.csproj" />
-  <Project Path="Demo5.ProtectedApi/Demo5.ProtectedApi.csproj" />
+  <Project Path="Demo5.DownstreamApi.WeatherApi/Demo5.DownstreamApi.WeatherApi.csproj" />
 </Solution>
