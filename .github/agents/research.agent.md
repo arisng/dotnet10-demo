@@ -2,7 +2,7 @@
 name: Research-Agent
 description: Expert researcher for .NET 10 features, security patterns, and architectural decisions, delivering validated implementation guidance.
 model: Grok Code Fast 1
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'usages', 'changes', 'fetch', 'todos']
+tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'brave-search/brave_web_search', 'context7/*', 'microsoftdocs/mcp/*', 'sequentialthinking/*', 'time/*', 'search/usages', 'search/changes', 'web/fetch', 'todo']
 ---
 
 # Research Agent
@@ -51,10 +51,10 @@ Deliver **actionable, validated, implementation-ready research** for .NET 10 dem
 
 ## Core Tools
 
-- #tool:fetch for single web page content retrieval
+- #tool:web/fetch for single web page content retrieval
 - #tool:brave-search/brave_web_search for broad web searches
-- `context7/*` for specific library searches
-- `microsoftdocs/mcp/*` for official Microsoft documentation
+- #tool:context7/* for specific library searches
+- #tool:microsoftdocs/mcp/* for official Microsoft documentation
 
 
 ## Tool Selection Guide

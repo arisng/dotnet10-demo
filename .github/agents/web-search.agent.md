@@ -2,7 +2,7 @@
 name: Web-Search-Agent
 description: Specialized web search agent for finding .NET 10 documentation, security best practices, and architectural patterns using Brave Search.
 model: Grok Code Fast 1
-tools: ['brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'fetch', 'todos']
+tools: ['brave-search/brave_web_search', 'sequentialthinking/*', 'time/*', 'web/fetch', 'todo']
 ---
 
 # Web Search Agent

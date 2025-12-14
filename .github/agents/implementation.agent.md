@@ -2,7 +2,7 @@
 name: Implementation-Agent
 description: Executes code changes, scaffolding, and configuration for .NET 10 demo projects based on research findings.
 model: Grok Code Fast 1
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'runCommands', 'usages', 'problems', 'changes', 'todos']
+tools: ['execute', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'sequentialthinking/*', 'todo']
 ---
 
 # Implementation Agent
