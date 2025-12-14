@@ -31,10 +31,10 @@ This document is designed for developers working through the incremental .NET 10
 ### How This Relates to Demo5
 
 Demo5 demonstrates **separate process architecture** with two key integrations:
-- **Microsoft Graph API**: External SaaS API for user profile data
-- **Protected API**: Internal API (demo5.ProtectedApi) running on port 7220
+- **GraphApi**: External Microsoft Graph API for user profile data
+- **WeatherApi**: Internal API (demo5.DownstreamApi.WeatherApi) running on port 7220
 
-The implementation showcases both single and multi-API registration patterns, making it an ideal case study for understanding real-world downstream API integration.
+The implementation showcases both single and multi-API registration patterns, making it an ideal case study for understanding real-world downstream APIs integration.
 
 ## Grounding Status
 
@@ -69,8 +69,8 @@ builder.Services.AddAuthentication()
         cookieScheme: null,
         subscribeToOpenIdConnectMiddlewareDiagnosticsEvents: true)
     .EnableTokenAcquisitionToCallDownstreamApi()
-    .AddDownstreamApi("DownstreamApi", builder.Configuration.GetSection("DownstreamApi"))
-    .AddDownstreamApi("ProtectedApi", builder.Configuration.GetSection("ProtectedApi"))
+    .AddDownstreamApi("GraphApi", builder.Configuration.GetSection("GraphApi"))
+    .AddDownstreamApi("WeatherApi", builder.Configuration.GetSection("WeatherApi"))
     .AddInMemoryTokenCaches();
 ```
 
@@ -78,11 +78,11 @@ builder.Services.AddAuthentication()
 
 ```json
 {
-  "DownstreamApi": {
+  "GraphApi": {
     "BaseUrl": "https://graph.microsoft.com/v1.0",
     "Scopes": "User.Read"
   },
-  "ProtectedApi": {
+  "WeatherApi": {
     "BaseUrl": "https://localhost:7220",
     "Scopes": [ "api://[API-CLIENT-ID-PLACEHOLDER]/Forecast.Read" ]
   }
@@ -91,7 +91,7 @@ builder.Services.AddAuthentication()
 
 ### Multi-API Registration Patterns
 
-Demo5 demonstrates registering multiple APIs by chaining `AddDownstreamApi()` calls. Each API gets a unique name ("DownstreamApi", "ProtectedApi") used to resolve the correct configuration.
+Demo5 demonstrates registering multiple APIs by chaining `AddDownstreamApi()` calls. Each API gets a unique name ("GraphApi", "WeatherApi") used to resolve the correct configuration.
 
 **Key Points:**
 - Names must be unique strings
@@ -143,11 +143,22 @@ builder.Services.AddHttpClient("MyApi", client => {
 
 ## API Hosting Architecture Decision
 
+### Architecture Decision Record
+
+For a comprehensive RFC evaluating both approaches with detailed tradeoffs, see [Co-Hosted vs Separate Process Architectures](../issues/251214_co-hosted-vs-separate-process-architectures.md).
+
+**Quick Decision:** Demo5 uses **separate process architecture** (BFF on port 7210, WeatherApi on port 7220) because:
+- ✅ Demonstrates real enterprise pattern (independent teams/deployments)
+- ✅ Shows full OBO flow with explicit token exchange
+- ✅ Allows independent API scaling
+- ✅ Clear pedagogical example of microservices boundary
+
 ### Separate Process vs Co-Hosted Patterns
 
 Demo5 implements the **separate process architecture**, where the downstream API runs as an independent ASP.NET Core application. This is contrasted with the **co-hosted pattern** used in earlier demos.
 
 #### Separate Process Architecture (Demo5)
+
 ```
 ┌─────────────────┐    ┌─────────────────┐
 │ Blazor BFF App  │    │ Protected API   │
@@ -159,6 +170,7 @@ Demo5 implements the **separate process architecture**, where the downstream API
 ```
 
 #### Co-Hosted Architecture (Demo3 Pattern)
+
 ```
 ┌─────────────────┐
 │ Blazor Web App  │
@@ -409,6 +421,7 @@ The IETF OAuth 2.0 Browser-Based Apps specification also states:
    - Local-first architecture
 
 #### ⚠️ Never Use Direct WASM For:
+
 - Payment processing
 - Healthcare/medical records
 - Financial transactions
@@ -437,15 +450,15 @@ The OBO flow in demo5 follows this sequence:
 │             │    │ 2. Validate │    │             │    │             │
 └─────────────┘    │   Cookie    │    │             │    │             │
                    └─────────────┘    │             │    │             │
-                                     │ 3. Check    │    │             │
-                                     │   Cache     │    │             │
-                                     └─────────────┘    │             │
-                                                       │ 4. OBO       │
-                                                       │   Request    │
-                                                       └─────────────┘
-                                                                      │
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐                 │
-│ Downstream  │    │   API       │    │   API       │◄────────────────┘
+                                      │ 3. Check    │    │             │
+                                      │   Cache     │    │             │
+                                      └─────────────┘    │             │
+                                                         │ 4. OBO      │
+                                                         │   Request   │
+                                                         └─────────────┘
+                                                                       │
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
+│ Downstream  │    │   API       │    │   API       │◄─────────────────┘
 │   API       │    │ Response    │    │ Validation  │
 │             │    │             │    │             │
 │ 5. Bearer   │    │ 6. Process  │    │ 7. Validate │
@@ -522,7 +535,7 @@ public class GraphService : IGraphService
         try
         {
             var result = await _downstreamApi.GetForUserAsync<UserProfile>(
-                "DownstreamApi",  // Registered API name
+                "GraphApi",  // Registered API name
                 options =>
                 {
                     options.RelativePath = "me";  // /me endpoint
