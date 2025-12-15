@@ -11,7 +11,7 @@ This repository is a **progressive workshop** demonstrating modern .NET 10 patte
 | **demo3** | BFF + RBAC | Permission-based authorization, role-permission junction table |
 | **demo4** | Entra ID Integration | OBO flow, Microsoft Graph, enterprise auth |
 | **demo5** | Downstream API | Server-to-server communication, protected scopes |
-| **demo6** | Greenfield ↔ Legacy | Integration patterns between modern and legacy systems |
+| **demo6** | Modular Monolith | Vertical slices, Adapter pattern, Legacy integration |
 
 **Key assumption:** demo2 is the baseline—all subsequent demos build on demo2's architecture.
 
@@ -164,10 +164,25 @@ POST https://localhost:7220/api/forecast (with Bearer token)
 DownstreamApi validates token + "Forecast.Read" scope
 ```
 
+## Modular Monolith Architecture (demo6+)
+
+**Vertical Slices:**
+Organize code by feature/domain rather than technical layer. Each slice contains its own:
+- Data access (EF Core or Adapter)
+- Service logic
+- API endpoints
+- UI components
+
+**Integration Patterns:**
+1.  **Greenfield (User Service):** Direct EF Core access to local DB.
+2.  **Legacy (Order Service):** `LegacyOrderAdapter` wraps calls to legacy HTTP APIs.
+3.  **Modern (Graph Service):** `IDownstreamApi` wraps calls to Microsoft Graph.
+
 ## Port Conventions
 
 - **Main App:** `https://localhost:7<N>10` (+ `http://localhost:5<N>10`) via `Properties/launchSettings.json`
 - **demo5 Downstream API:** `https://localhost:7220` (+ `http://localhost:5220`)
+- **demo6 Legacy API:** `https://localhost:7230`
 
 **Example Dev Loop:**
 ```bash
