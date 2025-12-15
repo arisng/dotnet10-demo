@@ -1,32 +1,26 @@
-# Demo6 – Legacy Integration with Modular Monolithic Architecture
+# Demo6 – From BFF to Modular Monolith with Legacy Integration
 
 ## Goal
 
-Build a **greenfield ASP.NET Core 10 application** showcasing **three complete service flows** from UI to data access, each implemented as an independent modular vertical slice:
-
-1. **User Service** (Greenfield/Local) - Managed entirely in the modern app
-2. **Order Service** (Legacy Integration) - Consumes a simulated 15+ year-old legacy HTTP API
-3. **Report Service** (Existing Integration) - Consumes a simulated 3-year-old REST API
-
-Each service includes a complete data-to-UI flow: Data Source → Adapter/Wrapper → Service Layer → BFF API → Blazor UI (SSR + WASM). Demonstrates modular architecture, adapter patterns, multi-service orchestration, and unified authentication across diverse backend systems.
+Transform the **Backend-for-Frontend (BFF)** architecture from demo5 into a **modular monolithic structure** using vertical slices. Demonstrate how to organize a growing application with **three complete service flows** that showcase different integration patterns (local database, legacy API, and modern API). This introductory approach to modular architecture prepares senior developers for maintaining large-scale enterprise applications where multiple domains and integration patterns coexist in a single deployment unit.
 
 ## Prerequisites
 
-- **Completed:** demo5 (Downstream API & OBO flow fundamentals)
+- **Completed:** demo4 (Entra ID + claims mapping) and demo5 (downstream API patterns)
 - **.NET 10 SDK** (Preview) with EF Core tools installed
 - **Visual Studio Code** or JetBrains Rider
-- Basic understanding of SOAP, REST APIs, and authentication schemes
-- (Optional) SoapUI or Postman for testing external service calls
+- **Target Audience:** Senior full-stack developers familiar with monolithic and distributed architectures
+- Understanding of vertical slicing and domain-driven design concepts (helpful but not required)
 
 ## Architecture Overview
 
 ### Three Complete Service Flows
 
-Each service implements the full vertical slice: Data Source → Adapter → Service → API → UI
+Each service implements a full vertical slice from data source to UI:
 
 **User Service Flow (Greenfield)**
 ```
-Database
+SQL Database
    ↓
 EF Core DbContext
    ↓
@@ -43,7 +37,7 @@ SSR + WASM Client
 ```
 Legacy HTTP API (port 7230)
    ↓
-LegacyOrderServiceAdapter (IOrderServiceAdapter)
+LegacyOrderAdapter (wraps legacy API calls)
    ↓
 OrderService (IOrderService) - maps legacy DTO → internal DTO
    ↓
@@ -54,71 +48,75 @@ Blazor Components (OrderList.razor, OrderDetail.razor)
 SSR + WASM Client
 ```
 
-**Report Service Flow (Existing Integration)**
+**Graph Service Flow (Modern API Integration)**
 ```
-Existing REST API (port 7240)
+Microsoft Graph API
    ↓
-ExistingAnalyticsServiceAdapter (IReportServiceAdapter)
+IDownstreamApi (OBO token exchange)
    ↓
-ReportService (IReportService) - maps v2 schema → v3 schema
+GraphService (IGraphService) - wraps Graph SDK calls
    ↓
-/api/reports (Minimal API endpoints)
+/api/graph (Minimal API endpoints)
    ↓
-Blazor Components (ReportDashboard.razor, ReportsList.razor)
+Blazor Components (UserCalendar.razor, UserEmails.razor)
    ↓
 SSR + WASM Client
 ```
+
+**Key Difference from Demo5:**
+- Demo5: Single-purpose BFF with one downstream API pattern
+- Demo6: Multi-domain modular monolith with three integration patterns (local, legacy, modern)
 
 ### Architecture Diagram
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  Blazor UI Layer (SSR + WASM)                                  │
-│  ┌─────────────────────┬──────────────────┬──────────────────┐ │
-│  │ UserProfile.razor   │ OrderList.razor  │ ReportDash.razor │ │
-│  └─────────────────────┴──────────────────┴──────────────────┘ │
+│  ┌─────────────────────┬──────────────────┐                    │
+│  │ UserProfile.razor   │ OrderList.razor  │                    │
+│  │ UserList.razor      │ OrderDetail.razor│                    │
+│  └─────────────────────┴──────────────────┘                    │
 ├────────────────────────────────────────────────────────────────┤
-│  BFF API Layer (/api/users, /api/orders, /api/reports)         │
+│  BFF API Layer (/api/users, /api/orders)                       │
 │  (Minimal APIs with permission-based authorization)            │
 ├────────────────────────────────────────────────────────────────┤
 │  Service Layer                                                 │
-│  ┌──────────────────┬──────────────────┬──────────────────┐    │
-│  │ UserService      │ OrderService     │ ReportService    │    │
-│  │ (IUserService)   │ (IOrderService)  │ (IReportService) │    │
-│  └──────────────────┴──────────────────┴──────────────────┘    │
+│  ┌──────────────────────────┬──────────────────────────┐       │
+│  │ UserService              │ OrderService             │       │
+│  │ (IUserService)           │ (IOrderService)          │       │
+│  └──────────────────────────┴──────────────────────────┘       │
 ├────────────────────────────────────────────────────────────────┤
-│  Adapter/Gateway Layer (only for external services)            │
-│  ┌──────────────────────────────┬──────────────────────────┐   │
-│  │ OrderServiceAdapter          │ ReportServiceAdapter     │   │
-│  │ (wraps legacy API)           │ (wraps existing API)     │   │
-│  └──────────────────────────────┴──────────────────────────┘   │
+│  Adapter Layer (external services only)                        │
+│  ┌──────────────────────────────────────────────────┐          │
+│  │ LegacyOrderAdapter (wraps legacy HTTP API)       │          │
+│  └──────────────────────────────────────────────────┘          │
 ├────────────────────────────────────────────────────────────────┤
 │  Authentication & Authorization                                │
 │  • PermissionClaimsTransformation (adds permission claims)     │
 │  • PermissionAuthorizationHandler (enforces policies)          │
-│  • AuthBridgeService (maps auth to legacy/existing schemes)    │
+│  • Simple token forwarding to legacy service                   │
 ├────────────────────────────────────────────────────────────────┤
 │  Data Access Layer                                             │
 │  ┌──────────────────────┐      ┌──────────────────────────┐    │
-│  │ EF Core DbContext    │      │ HTTP Clients to          │    │
-│  │ (local database)     │      │ external services        │    │
+│  │ EF Core DbContext    │      │ HttpClient to            │    │
+│  │ (local database)     │      │ legacy service           │    │
 │  └──────────────────────┘      └──────────────────────────┘    │
 └────────────────────────────────────────────────────────────────┘
-         ↓                  ↓                    ↓
-   ┌──────────────┐    ┌────────────────┐  ┌──────────────────┐
-   │ SQL Database │    │ Legacy Service │  │ Existing Service │
-   │              │    │ (port 7230)    │  │ (port 7240)      │
-   └──────────────┘    └────────────────┘  └──────────────────┘
+         ↓                            ↓
+   ┌──────────────┐            ┌────────────────┐
+   │ SQL Database │            │ Legacy Service │
+   │              │            │ (port 7230)    │
+   └──────────────┘            └────────────────┘
 ```
 
-### Modular Monolithic Structure
+### Modular Monolithic Structure (Introductory Pattern)
 
-Each service module is a **complete vertical slice** with data, service, API, and UI layers:
+Each service module is a **vertical slice** organized by business capability:
 
 ```
 Demo6.LegacyIntegration/
 ├── Modules/
-│   ├── Users/ (Greenfield Service - fully local)
+│   ├── Users/                   (Greenfield - Local Database)
 │   │   ├── Data/
 │   │   │   ├── ApplicationUser.cs
 │   │   │   └── UserRole.cs
@@ -130,139 +128,200 @@ Demo6.LegacyIntegration/
 │   │       ├── UserProfile.razor
 │   │       └── UserList.razor
 │   │
-│   ├── Orders/ (Legacy Integration Service)
+│   ├── Orders/                  (Legacy Integration)
 │   │   ├── Adapters/
-│   │   │   └── LegacyOrderServiceAdapter.cs (IOrderServiceAdapter)
+│   │   │   └── LegacyOrderAdapter.cs
+│   │   │       └── Wraps legacy HTTP API calls
 │   │   ├── Services/
 │   │   │   └── OrderService.cs (IOrderService)
-│   │   │       └── calls adapter → transforms legacy DTO → internal DTO
+│   │   │       └── Maps legacy DTO → internal DTO
 │   │   ├── Api/
 │   │   │   └── OrdersEndpoints.cs (/api/orders)
 │   │   └── Components/
 │   │       ├── OrderList.razor
 │   │       └── OrderDetail.razor
 │   │
-│   └── Reports/ (Existing Integration Service)
-│       ├── Adapters/
-│       │   └── ExistingAnalyticsServiceAdapter.cs (IReportServiceAdapter)
+│   └── Graph/                   (Modern API Integration - OBO Flow)
 │       ├── Services/
-│       │   └── ReportService.cs (IReportService)
-│       │       └── calls adapter → maps v2 schema → v3 schema
+│       │   └── GraphService.cs (IGraphService)
+│       │       └── Calls IDownstreamApi with OBO tokens
 │       ├── Api/
-│       │   └── ReportsEndpoints.cs (/api/reports)
+│       │   └── GraphEndpoints.cs (/api/graph/calendar, /api/graph/emails)
 │       └── Components/
-│           ├── ReportDashboard.razor
-│           └── ReportsList.razor
+│           ├── UserCalendar.razor
+│           └── UserEmails.razor
 │
-├── Shared/
+├── Shared/                      (Cross-Module Contracts)
 │   ├── Models/
 │   │   ├── Order.cs
-│   │   ├── Report.cs
+│   │   ├── CalendarEvent.cs
+│   │   ├── Email.cs
 │   │   └── ApplicationUser.cs
 │   └── Interfaces/
 │       ├── IUserService.cs
 │       ├── IOrderService.cs
-│       └── IReportService.cs
+│       └── IGraphService.cs
 │
-├── Authorization/
+├── Authorization/               (Shared Infrastructure)
 │   ├── PermissionClaimsTransformation.cs
 │   └── PermissionAuthorizationHandler.cs
 │
-├── Data/
+├── Data/                        (Shared Infrastructure)
 │   ├── ApplicationDbContext.cs
 │   └── DbSeeder.cs
 │
-├── Program.cs
+├── Program.cs                   (Module Registration & DI)
 └── appsettings.json
 ```
 
+**Key Principles (Simple Introduction):**
+- **Vertical Slicing:** Each module owns its full stack (data → UI)
+- **Shared Infrastructure:** Common concerns (auth, data) live outside modules
+- **Module Independence:** Modules communicate via interfaces, not direct coupling
+- **DI Registration:** Each module registers its services in `Program.cs`
+
+**Not Covered in Demo6 (Advanced Topics for Future):**
+- ❌ Module-level event buses
+- ❌ Complex inter-module communication patterns
+- ❌ Module-specific databases (separate schemas)
+- ❌ Feature toggles per module
+
 ## What's New in Demo6
 
-### Three Complete Service Implementations
+### Architectural Progression: From Monolith to Modular Monolith
 
-Unlike previous demos which focus on single architectures, demo6 implements **three end-to-end services** with different data sources:
+**Demo4:** Introduced Entra ID integration + centralized claims transformation (identity patterns)
+
+**Demo5:** Introduced downstream API pattern with OBO flow (API security patterns)
+
+**Demo6:** Combines both patterns into a **modular monolithic structure** that shows how to organize a growing application:
+```
+Demo4: Authentication + Authorization
+  ↓
+Demo5: BFF + Downstream APIs
+  ↓
+Demo6: Modular Organization of Multiple Integration Patterns
+```
+
+### From Single-Pattern BFF to Multi-Pattern Modular Monolith
+
+**Demo5 (Single Pattern):**
+```
+Blazor UI → BFF → Downstream Weather API (OBO flow)
+└─ One domain (Weather), one integration pattern
+```
+
+**Demo6 (Multiple Patterns, Same App):**
+```
+Blazor UI → Modular BFF:
+            ├── Users Module → Local SQL Database
+            ├── Orders Module → Legacy HTTP API (new adapter pattern)
+            └── Graph Module → Microsoft Graph (OBO from demo5)
+└─ Three domains, three integration patterns, single deployment
+```
+
+**Key Achievement:** Demo6 shows that demo4's centralized claims (identity) and demo5's OBO flow (API pattern) scale naturally as the application grows. Auth and API patterns from earlier demos remain intact and functional.
+
+### Three Service Implementations
 
 #### 1. **User Service** (Greenfield/Local)
 
-- **Data Source:** SQL Server database (EF Core)
-- **Service Layer:** `IUserService` with business logic
+- **Data Source:** SQL Server database via EF Core
+- **Service Layer:** `IUserService` with simple CRUD operations
 - **API Layer:** `/api/users`, `/api/me` (Minimal APIs)
 - **UI Components:** `UserProfile.razor`, `UserList.razor` (SSR + WASM)
-- **No Adapter Needed:** Direct database access
-- **Auth:** Local passkeys + Entra ID sync
+- **Pattern:** Traditional local database access (baseline for comparison)
 
-#### 2. **Order Service** (Legacy Integration)
+#### 2. **Order Service** (Legacy Integration) ← PRIMARY FOCUS
 
-- **Data Source:** External legacy HTTP API (port 7230)
-- **Adapter Layer:** `LegacyOrderServiceAdapter` (wraps quirky legacy API)
-- **Service Layer:** `IOrderService` (translates legacy DTO → internal DTO)
+- **Data Source:** External legacy HTTP API (port 7230, simulated)
+- **Adapter Layer:** `LegacyOrderAdapter` wraps legacy API calls
+- **Service Layer:** `IOrderService` maps legacy DTOs to internal models
 - **API Layer:** `/api/orders` (Minimal APIs)
 - **UI Components:** `OrderList.razor`, `OrderDetail.razor` (SSR + WASM)
-- **Resilience:** Circuit breakers, retries, error handling
+- **Pattern:** Adapter pattern for external service integration
 
-#### 3. **Report Service** (Existing Integration)
+#### 3. **Graph Service** (Modern API Integration)
 
-- **Data Source:** External 3-year-old REST API (port 7240)
-- **Adapter Layer:** `ExistingAnalyticsServiceAdapter` (API translator)
-- **Service Layer:** `IReportService` (maps v2 schema → v3 schema)
-- **API Layer:** `/api/reports` (Minimal APIs)
-- **UI Components:** `ReportDashboard.razor`, `ReportsList.razor` (SSR + WASM)
-- **Resilience:** Circuit breakers, API key management, graceful degradation
+- **Data Source:** Microsoft Graph API (Calendar, Mail, etc.)
+- **Integration:** `IDownstreamApi` with OBO token exchange (from demo5)
+- **Service Layer:** `IGraphService` wraps Graph SDK calls
+- **API Layer:** `/api/graph/calendar`, `/api/graph/emails` (Minimal APIs)
+- **UI Components:** `UserCalendar.razor`, `UserEmails.razor` (SSR + WASM)
+- **Pattern:** OBO flow for delegated permissions (carries over from demo5)
 
 ### Key Features
 
 #### Adapter Pattern for External Services
 
-**Legacy Order Service Adapter**
+**Legacy Order Adapter**
 ```csharp
-public interface ILegacyOrderServiceAdapter
+public interface ILegacyOrderAdapter
 {
-    Task<OrderDto> GetOrderAsync(int orderId);
-    Task<List<OrderDto>> GetOrdersByCustomerAsync(string customerId);
-    Task<bool> CreateOrderAsync(CreateOrderRequest request);
+    Task<LegacyOrderResponse> GetOrderAsync(int orderId);
+    Task<List<LegacyOrderResponse>> GetOrdersByCustomerAsync(string customerId);
 }
 
-public class LegacyOrderServiceAdapter : ILegacyOrderServiceAdapter
+public class LegacyOrderAdapter : ILegacyOrderAdapter
 {
+    private readonly HttpClient _httpClient;
+    
     // Wraps legacy HTTP API calls
-    // Translates legacy responses to modern DTOs
-    // Handles legacy error codes and quirky response formats
+    // Handles legacy response formats and error codes
+    // Returns raw legacy DTOs (transformation happens in service layer)
 }
 ```
 
-**Existing Analytics Service Adapter**
+**Order Service (Maps Legacy to Internal Models)**
 ```csharp
-public interface IExistingAnalyticsServiceAdapter
+public class OrderService : IOrderService
 {
-    Task<ReportDto> GetReportAsync(string reportId);
-    Task<List<ReportDto>> QueryReportsAsync(ReportFilterDto filter);
-}
-
-public class ExistingAnalyticsServiceAdapter : IExistingAnalyticsServiceAdapter
-{
-    // Calls 3-year-old REST API
-    // Maps v2 API schema to v3 internal schema
-    // Handles API key authentication
+    private readonly ILegacyOrderAdapter _adapter;
+    
+    public async Task<Order> GetOrderAsync(int orderId)
+    {
+        // Call adapter
+        var legacyOrder = await _adapter.GetOrderAsync(orderId);
+        
+        // Map legacy DTO → internal domain model
+        return new Order
+        {
+            Id = legacyOrder.OrderId,
+            CustomerName = legacyOrder.CustName, // Legacy uses abbreviated fields
+            Status = MapLegacyStatus(legacyOrder.Stat),
+            Total = legacyOrder.TotalAmt / 100m // Legacy stores cents
+        };
+    }
 }
 ```
 
-#### Authentication Bridge Service
+#### Simple Authentication Forwarding
 
-Converts between modern authentication (Entra ID + passkeys) and legacy auth schemes:
+For demo purposes, we use **simple token forwarding** to legacy services:
 
 ```csharp
-public interface IAuthBridgeService
+// In LegacyOrderAdapter
+public class LegacyOrderAdapter : ILegacyOrderAdapter
 {
-    Task<string> GetLegacyServiceTokenAsync(ClaimsPrincipal user);
-    Task<string> GetExistingServiceApiKeyAsync(ClaimsPrincipal user);
-    Task<BasicAuthCredentials> TranslateToBasicAuthAsync(ClaimsPrincipal user);
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    
+    private async Task<HttpRequestMessage> CreateRequestAsync(string endpoint)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+        
+        // Forward user identity as simple header (demo only)
+        var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId != null)
+        {
+            request.Headers.Add("X-User-Id", userId);
+        }
+        
+        return request;
+    }
 }
 ```
 
-**Scenarios:**
-- Modern app uses Entra ID token → bridge converts to Legacy Service's basic auth
-- Modern app uses passkey cookie → bridge generates API key for Existing Service
-- Cross-service impersonation / service-to-service calls with bearer tokens
+**Production Note:** In production systems, use proper auth translation (OAuth2 token exchange, service accounts, or API gateway-managed auth). Complex `IAuthBridgeService` abstractions will be covered in advanced demos.
 
 #### Full Blazor UI Support (SSR + WASM)
 
@@ -299,28 +358,68 @@ All three services have complete UI coverage:
 }
 ```
 
-#### Modular Monolithic Architecture
+#### Modular Monolithic Architecture (Introduction)
 
-Each service module is independent:
-- **Vertical Slicing:** Module owns data, service, API, and UI layers
-- **Dependency Injection per Module:** Modules register in `Program.cs`
-- **Cross-Module Communication:** Via interfaces, not direct coupling
-- **Testability:** Each module can be unit tested with mocked external services
+Each service module follows vertical slicing principles:
+- **Vertical Slicing:** Module owns its complete stack (data → service → API → UI)
+- **Module Registration:** Extensions methods in `Program.cs` for clean DI setup
+- **Cross-Module Communication:** Via shared interfaces in `Shared/` folder
+- **Shared Infrastructure:** Common concerns (auth, database context) remain shared
 
-**Module Registration**
+**Module Registration Pattern**
 ```csharp
 // Program.cs
-builder.Services.AddUsersModule();
-builder.Services.AddOrdersModule();
-builder.Services.AddReportsModule();
+builder.Services.AddUsersModule();   // Registers IUserService, endpoints, etc.
+builder.Services.AddOrdersModule();  // Registers IOrderService, adapter, endpoints, etc.
+builder.Services.AddGraphModule();   // Registers IGraphService, IDownstreamApi, endpoints
 ```
 
-#### Simulated External Services
+**Extension Method Example**
+```csharp
+// Modules/Orders/OrdersModule.cs
+public static class OrdersModule
+{
+    public static IServiceCollection AddOrdersModule(this IServiceCollection services)
+    {
+        // Register services
+        services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<ILegacyOrderAdapter, LegacyOrderAdapter>();
+        
+        // Register HttpClient for legacy API
+        services.AddHttpClient<ILegacyOrderAdapter, LegacyOrderAdapter>(client =>
+        {
+            client.BaseAddress = new Uri("https://localhost:7230");
+        });
+        
+        return services;
+    }
+    
+    public static IEndpointRouteBuilder MapOrdersEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup("/api/orders").RequireAuthorization();
+        
+        group.MapGet("/", async (IOrderService orderService) =>
+            await orderService.GetOrdersAsync());
+        
+        return endpoints;
+    }
+}
+```
 
-Both legacy and existing services are simulated (built-in for demo):
-- **Simulated.LegacyOrderService** (port 7230): Fake legacy HTTP API with quirky patterns
-- **Simulated.ExistingAnalyticsService** (port 7240): Fake 3-year-old REST API
-- Can be replaced with real services by updating `appsettings.json`
+**Why This Pattern:**
+- Clear module boundaries without complex infrastructure
+- Easy to test (mock `ILegacyOrderAdapter` for `OrderService` tests)
+- Prepares for potential microservices migration (each module is extraction-ready)
+- Keeps it simple: no event buses, no separate databases, no feature flags (yet)
+
+#### Simulated Legacy Service
+
+A standalone project simulates the legacy order system:
+- **Simulated.LegacyOrderService** (port 7230): Mimics 15-year-old HTTP API patterns
+  - Non-RESTful endpoints (e.g., `/GetOrder?id=123`)
+  - Quirky field names (e.g., `CustName`, `Stat`, `TotalAmt` in cents)
+  - Inconsistent error handling
+- Can be replaced with real legacy API by updating `appsettings.json`
 
 #### Error Handling & Resilience
 
@@ -370,77 +469,108 @@ Same as demo5:
    # Runs on https://localhost:7230
    ```
 
-3. **Terminal 2 – Start Simulated Existing Service:**
-   ```bash
-   cd demo6/Simulated.ExistingAnalyticsService
-   dotnet watch
-   # Runs on https://localhost:7240
-   ```
-
-4. **Terminal 3 – Start Main App:**
+3. **Terminal 2 – Start Main App:**
    ```bash
    cd demo6/Demo6.LegacyIntegration
    dotnet watch
    # Runs on https://localhost:7210
    ```
 
-5. **Open Browser:**
+4. **Open Browser:**
    ```
    https://localhost:7210
    ```
 
-6. **Test the Three Service Flows:**
-   - **User Service (Greenfield):**
-     - Log in with passkey or Entra ID
-     - Navigate to Users page → View user profile
-     - Verify data is stored locally in SQL database
+5. **Test the Three Service Flows:**
    
-   - **Order Service (Legacy Integration):**
-     - Navigate to Orders page → Load orders from legacy service (port 7230)
-     - Adapter translates legacy HTTP responses to internal DTOs
-     - Verify error handling if legacy service is down
+   **User Service (Greenfield/Local):**
+   - Log in with test credentials (e.g., `admin@local.app` / `Admin123!`)
+   - Navigate to `/users` → View user list
+   - Navigate to `/profile` → View/edit your profile
+   - Verify data is stored locally in SQL database
+   - **Key Observation:** Direct database access, fast response times
    
-   - **Report Service (Existing Integration):**
-     - Navigate to Reports page → Load reports from existing service (port 7240)
-     - Adapter maps v2 API schema to v3 internal schema
-     - Verify error handling and fallback behavior
+   **Order Service (Legacy Integration) ← PRIMARY FOCUS:**
+   - Navigate to `/orders` → Load orders from legacy service
+   - Click on an order → View order details
+   - Observe the adapter translating legacy quirks:
+     - Field name mapping (`CustName` → `CustomerName`)
+     - Data transformation (cents → decimal)
+     - Status code mapping
+   - **Resilience Test:** Stop the legacy service (Terminal 1) → observe error handling
+   - **Key Observation:** Adapter isolates legacy quirks from your domain model
    
-   - **Full UI Flow:**
-     - Both SSR (server-side rendering) and WASM work for all services
-     - Prerendering works (components can be SSR'd)
-     - Interactivity switches to WASM seamlessly
+   **Graph Service (Modern API Integration):**
+   - Log in with Entra ID account (requires work/school account)
+   - Navigate to `/calendar` → View your calendar events from Microsoft Graph
+   - Navigate to `/emails` → View recent emails from your mailbox
+   - Observe OBO flow in action (BFF exchanges user token for Graph token)
+   - **Key Observation:** Same OBO pattern from demo5, now in modular context
+   
+   **Module Boundaries:**
+   - Review `Modules/Users/`, `Modules/Orders/`, `Modules/Graph/` in code
+   - Notice how each module has its own service, API, and components
+   - Observe module registration in `Program.cs` (3 separate `.AddXxxModule()` calls)
 
 ## Key Learning Points
 
-- ✅ **Three Complete Service Flows:** Understand how to implement greenfield, legacy, and existing service integrations end-to-end
-- ✅ **Vertical Slice Modules:** Organize monolithic apps into independent feature modules with data-to-UI layers
-- ✅ **Adapter Pattern:** Wrap and translate incompatible legacy/existing APIs into clean internal contracts
-- ✅ **Auth Bridge:** Converting between different authentication schemes (passkeys → basic auth, cookies → API keys, etc.)
-- ✅ **Blazor SSR + WASM:** Full UI support for both server-side rendering and interactive WebAssembly
-- ✅ **Data Mapping & Transformation:** Converting between incompatible schemas across service boundaries
-- ✅ **Resilience Patterns:** Circuit breakers, retries, fallbacks for unreliable external systems
-- ✅ **Testing & Mocking:** Unit testing modules with mocked external services
-- ✅ **Real-World Enterprise Scenarios:** Bridging legacy, existing, and greenfield systems in production
-- ✅ **Modular Monolithic Best Practices:** Balancing maintainability with simplicity
+### Architecture Evolution
+
+- ✅ **BFF → Modular Monolith:** Understand when and how to evolve a BFF into a modular structure
+- ✅ **Vertical Slicing (Introductory):** Organize domains into independent modules with complete stacks
+- ✅ **Module Boundaries:** Define clear boundaries without over-engineering
+- ✅ **Three Integration Patterns:** Local DB + Legacy API + Modern API in one app
+
+### Legacy Integration (PRIMARY FOCUS)
+
+- ✅ **Adapter Pattern:** Isolate legacy API quirks from your domain model
+- ✅ **DTO Mapping:** Transform incompatible schemas at service boundaries
+- ✅ **Simple Auth Forwarding:** Basic authentication patterns for demo purposes
+
+### Modern API Integration (Continuity from Demo5)
+
+- ✅ **OBO Flow in Modular Context:** Microsoft Graph integration with delegated permissions
+- ✅ **IDownstreamApi Pattern:** Reuse downstream API service from demo5
+- ✅ **Enterprise Realism:** Calendar and email integration scenarios
+
+### Enterprise Patterns
+
+- ✅ **Multiple Data Sources:** Combine local databases with external service calls
+- ✅ **Resilience (Basic):** Handle external service failures gracefully
+- ✅ **Module Registration:** Clean DI setup with extension methods
+- ✅ **Testability:** Design for unit testing with interface-based dependencies
+
+### What's Deferred to Advanced Demos
+
+- ⏭️ Complex auth translation (OAuth2 token exchange, service accounts)
+- ⏭️ Inter-module event buses and messaging
+- ⏭️ Module-specific databases (separate schemas/connections)
+- ⏭️ Feature flags and gradual rollouts
+- ⏭️ Full circuit breaker implementations (Polly patterns)
+- ⏭️ Microservices decomposition strategies
 
 ## Files & Folders
 
 | File/Folder                           | Purpose                                  |
 | ------------------------------------- | ---------------------------------------- |
-| `Demo6.LegacyIntegration/`            | Main greenfield app (modular monolithic) |
+| `Demo6.LegacyIntegration/`            | Main app with modular structure          |
 | `Demo6.LegacyIntegration.Client/`     | Blazor WASM client                       |
 | `Demo6.LegacyIntegration.Shared/`     | Shared DTOs and interfaces               |
-| `Simulated.LegacyOrderService/`       | Fake 15-year-old SOAP service            |
-| `Simulated.ExistingAnalyticsService/` | Fake 3-year-old REST service             |
+| `Simulated.LegacyOrderService/`       | Simulated legacy HTTP API (port 7230)    |
 
-## Unresolved Questions & Future Work
+## Design Decisions for Demo6
 
-- [ ] Should we use MediatR for command/query handling across modules?
-- [ ] How deep should vertical slicing go? Complete isolation or shared infrastructure?
-- [ ] What level of circuit breaker / resilience is practical for demo?
-- [ ] Should we demonstrate service mesh concepts or keep it simple?
-- [ ] How to handle cross-cutting concerns (logging, tracing) across module boundaries?
-- [ ] Should demo7 extend this with actual microservices decomposition?
+**Kept Simple (For Introduction):**
+- ✅ No MediatR/CQRS (keep service layer direct)
+- ✅ Shared infrastructure (auth, DbContext) outside modules
+- ✅ Basic error handling (no full Polly circuit breakers yet)
+- ✅ Simple token forwarding (no complex auth bridge)
+
+**Advanced Topics for Future Demos:**
+- ⏭️ **Demo7+:** Microservices decomposition from this modular monolith
+- ⏭️ **Demo8+:** Event-driven architecture with message buses
+- ⏭️ **Demo9+:** Full observability stack (distributed tracing, metrics)
+- ⏭️ **Demo10+:** Multi-tenancy and feature flags per module
 
 ## Related Demos
 

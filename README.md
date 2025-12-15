@@ -37,10 +37,10 @@ dotnet watch
 | demo1 | Completed  | Identity scaffolding baseline                 | —          | CLI scaffolding, cookie auth foundation                                  |
 | demo2 | Completed  | Dual-mode diagnostics + Passkeys              | demo1      | Auth state probe, full passkey implementation, WASM caching              |
 | demo3 | Completed  | BFF APIs + Permission-Based RBAC              | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
-| demo4 | Completed  | Microsoft Entra ID integration                | demo3      | External provider, Graph API (OBO), inherits permission system           |
+| demo4 | Completed  | Microsoft Entra ID + Claims Mapping         | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth |
 | demo5 | Completed  | Custom Downstream APIs (Microservices)        | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
-| demo6 | Planned    | Entra ID claims → Permission mapping          | demo5      | Auto-map Entra groups/roles to local permissions                         |
-| demo7 | Planned    | Production hardening (multi-identity edition) | demo6      | Secrets, logging, monitoring, HTTPS enforcement                          |
+| demo6 | Planned    | From BFF to Modular Monolith                 | demo5      | Vertical slicing, legacy integration, three integration patterns (local, legacy, modern) |
+| demo7 | Planned    | Production hardening + Entra ID claims mapping | demo6      | Secrets, logging, monitoring, Entra App Roles → permissions, HTTPS enforcement |
 
 ## Demo Details
 
@@ -96,92 +96,92 @@ dotnet watch
 - **Architecture:** Monolithic Blazor Web App (Server + WASM + APIs + RBAC in one project)
 - **Outcome:** Complete permission-based authorization system using .NET 10 best practices with API endpoints explicitly declaring required permissions. Foundation ready for Entra ID integration (demo4 will map Entra roles → existing permissions). Clear separation: authentication (who you are) vs. authorization (what you can do).
 
-### demo4 – Microsoft Entra ID Integration
+### demo4 – Microsoft Entra ID Integration + Claims Mapping
 
-- **Goal:** Add Microsoft Entra ID as an external identity provider alongside local passkey authentication, supporting a hybrid scenario (B2C customers use passkeys, employees use Entra ID).
+- **Goal:** Add Microsoft Entra ID as an external identity provider alongside local passkey authentication, and implement automatic role mapping based on Entra ID App Roles to enable centralized permission management.
 - **What's new:**
-  - Configure `AddMicrosoftIdentityWebApp()` or OpenID Connect for Entra ID
-  - **Downstream API (Microsoft Graph):** Configure `EnableTokenAcquisitionToCallDownstreamApi` to fetch user profile data (photo, job title) server-side, demonstrating the On-Behalf-Of (OBO) flow
-  - **Secure State Serialization:** Explicitly demonstrate `AddAuthenticationStateSerialization` to pass the Entra identity to the WASM client without exposing access tokens
-  - Update login UI to offer "Sign in with Microsoft" alongside passkey/password options
-  - Map Entra ID claims (email, name, oid) to `ApplicationUser`
-  - Handle account linking scenarios (e.g., same email exists as local + Entra user)
-  - **Reuse permission system from demo3:** Entra users get role assignments via database seeding initially
-  - Update `AuthStateProbe` to differentiate local vs. Entra ID authentication source
+  - **Entra ID Provider Integration:**
+    - Configure `AddMicrosoftIdentityWebApp()` or OpenID Connect for Entra ID
+    - **Downstream API (Microsoft Graph):** Configure `EnableTokenAcquisitionToCallDownstreamApi` to fetch user profile data (photo, job title) server-side, demonstrating the On-Behalf-Of (OBO) flow
+    - **Secure State Serialization:** Explicitly demonstrate `AddAuthenticationStateSerialization` to pass the Entra identity to the WASM client without exposing access tokens
+    - Update login UI to offer "Sign in with Microsoft" alongside passkey/password options
+    - Map Entra ID claims (email, name, oid) to `ApplicationUser`
+    - Handle account linking scenarios (e.g., same email exists as local + Entra user)
+  - **Entra ID Claims Mapping (App Roles → Permissions):**
+    - **Entra App Roles as Source of Truth:** Define App Roles (e.g., `GlobalAdmin`, `ContentManager`) in the Entra Manifest
+    - Enhance `ClaimsTransformation` middleware:
+      - If Entra user: read `roles` claim → map to local roles → load permissions
+      - If local user: existing role lookup from demo3
+    - Example mappings:
+      - Entra App Role "GlobalAdmin" → local "Admin" role → all admin permissions
+      - Entra App Role "ContentManager" → local "Manager" role → manager permissions
+    - Both local passkey admins and Entra-authenticated admins have identical permission claims
+    - Add `RoleMappingConfiguration` table to manage Entra App Role value → local role mappings
+    - Admin UI to configure mappings (optional: `RoleMappingManager.razor`)
+    - Update `AuthStateProbe` to show Entra roles and their mapped permissions
+  - **Reuse permission system from demo3:** Authorization infrastructure (permissions, policies) remains unchanged
   - BFF APIs continue working for both local and Entra-authenticated users (cookie-based)
-- **Architecture:** Still monolithic, introduce `ExternalAuthenticationState` to track provider
-- **Outcome:** Unified authentication experience where identity source is transparent to the authorization layer. Both passkey admins and Entra admins have identical permissions through the same claims transformation pipeline.
+- **Architecture:** Still monolithic, introduce `ExternalAuthenticationState` to track provider, enhance authorization middleware for multi-source role mapping
+- **Outcome:** Unified authentication experience where identity source is transparent to the authorization layer. Both passkey admins and Entra admins have identical permissions through the same claims transformation pipeline. Centralized Entra ID role management automatically grants app permissions without touching the application database.
 
 ### demo5 – Custom Downstream APIs (Microservice Pattern)
 
-- **Goal:** Create a standalone protected API service and consume it from the Blazor app using Entra ID tokens, contrasting the "BFF" (Cookie) vs. "Downstream" (Token) architectures.
+- **Goal:** Create a standalone protected API service and consume it from the Blazor app using Entra ID tokens, contrasting the "BFF" (Cookie) vs. "Downstream" (Token) architectures. Demonstrate how claims mapped in demo4 flow transparently through to custom downstream APIs.
 - **What's new:**
-  - **New Project:** `Demo5.DownstreamApi.WeatherApi` (ASP.NET Core Minimal API) running on a separate port
-  - **API Security:** Configure `AddMicrosoftIdentityWebApi` to validate Bearer tokens
-  - **Entra Configuration:**
-    - Expose an API in Entra ID (App ID URI)
-    - Define custom scopes: `Forecast.Read`
-    - Grant permission to the Blazor client app
-  - **Client Implementation:**
-    - Use `IDownstreamApi` helper to call the custom API
-    - Demonstrate the "On-Behalf-Of" (OBO) flow where the user's identity flows to the API
-  - **Architecture Comparison:**
-    - **BFF API:** `/api/weather` (Local, Cookie, Implicit Trust)
-    - **Downstream API:** `https://localhost:xxxx/weather` (Remote, Token, Explicit Trust)
-- **Outcome:** A solution containing both monolithic (BFF) and microservice (Downstream) patterns, clearly demonstrating when and how to use each security model.
+  - **Downstream API Architecture:**
+    - New Project: `Demo5.DownstreamApi.WeatherApi` (ASP.NET Core Minimal API) running on a separate port
+    - API Security: Configure `AddMicrosoftIdentityWebApi` to validate Bearer tokens
+    - Entra Configuration:
+      - Expose an API in Entra ID (App ID URI)
+      - Define custom scopes: `Forecast.Read`
+      - Grant permission to the Blazor client app
+    - Client Implementation:
+      - Use `IDownstreamApi` helper to call the custom API
+      - Demonstrate the "On-Behalf-Of" (OBO) flow where the user's identity flows to the API
+    - Architecture Comparison:
+      - **BFF API:** `/api/weather` (Local, Cookie, Implicit Trust)
+      - **Downstream API:** `https://localhost:xxxx/weather` (Remote, Token, Explicit Trust)
+  - **Claims Flow:** Show that permission claims mapped in demo4 are available in downstream API (validates end-to-end authorization)
+- **Architecture:** Still monolithic, introduce `IDownstreamApi` abstraction for external service communication
+- **Outcome:** A solution containing both monolithic (BFF) and microservice (Downstream) patterns, clearly demonstrating when and how to use each security model. Understanding that claims transformation happens centrally (demo4) and flows through all downstream consumers.
 
-### demo6 – Entra ID Claims → Permission Mapping
 
-- **Goal:** Implement automatic role mapping based on Entra ID App Roles, enabling centralized permission management through Entra ID.
+### demo6 – From BFF to Modular Monolith with Legacy Integration
+
+- **Goal:** Evolve the BFF pattern from demo5 into a modular monolithic architecture by organizing multiple domains as vertical slices. Demonstrate how to integrate three different sources (local database, legacy API, modern API) within a single deployment unit.
 - **What's new:**
-  - **Entra App Roles as Source of Truth:** Define App Roles (e.g., `GlobalAdmin`, `ContentManager`) in the Entra Manifest
-  - Enhance `ClaimsTransformation` middleware:
-    - If Entra user: read `roles` claim → map to local roles → load permissions
-    - If local user: existing role lookup from demo3
-  - Example mappings:
-    - Entra App Role "GlobalAdmin" → local "Admin" role → all admin permissions
-    - Entra App Role "ContentManager" → local "Manager" role → manager permissions
-  - Both local passkey admins and Entra admins have identical permission claims
-  - Add `RoleMappingConfiguration` table to manage Entra App Role value → local role mappings
-  - Admin UI to configure mappings (optional: `RoleMappingManager.razor`)
-  - Update diagnostics to show Entra roles and their mapped permissions
-- **Outcome:** Centralized Entra ID role management automatically grants app permissions. IT admins control access via Entra App Roles without touching the application database. Authorization logic remains identity-source agnostic.
+  - **Modular Monolithic Structure:** Three independent vertical slices (Users, Orders, Graph), each owning data → service → API → UI
+  - **Three Integration Patterns:**
+    - Users: Local SQL database (greenfield)
+    - Orders: Legacy HTTP API with adapter pattern (demo-specific focus)
+    - Graph: Microsoft Graph API with OBO flow (carries over from demo5)
+  - **Module Organization:** Extension methods for clean DI registration (`AddUsersModule()`, `AddOrdersModule()`, `AddGraphModule()`)
+  - **Legacy Integration:** Adapter pattern isolates legacy API quirks from domain model; simple DTO mapping at service boundary
+  - **Vertical Slicing Principles:** Each module is extraction-ready for future microservices migration
+  - **Simulated Legacy Service:** `Simulated.LegacyOrderService` on port 7230 to mimic real legacy system quirks
+  - **Three Data Access Patterns:** EF Core (local), HttpClient with adapter (legacy), IDownstreamApi (modern)
+- **Architecture:** Monolithic Blazor Web App with internal modular structure (prepares for future decomposition)
+- **Outcome:** Senior developers understand how to organize growing monoliths with clear module boundaries while handling diverse integration patterns. Legacy integration patterns demonstrate real-world enterprise challenges.
 
-### demo7 – Production Hardening (Multi-Identity Edition)
+### demo7 – Production Hardening
 
-- **Goal:** Prepare the hybrid passkey + Entra ID app for production deployment with operational best practices and enterprise-grade observability.
+- **Goal:** Prepare the modular monolith from demo6 for production deployment with operational best practices and enterprise-grade observability.
 - **What's new:**
-  - **Secrets Management:**
-    - Move Entra ID client secrets to Azure Key Vault or User Secrets
-    - Environment-specific configuration for Dev/Staging/Production
-  - **Strongly-Typed Configuration:**
-    - Replace configuration "magic strings" (Scopes, TenantIds) with `IOptions<EntraSettings>` pattern
-  - **Logging & Telemetry:**
-    - Configure Serilog with structured logging (capture auth provider, user source, permission checks)
-    - Add Application Insights telemetry for sign-in events, API calls, authorization failures
-    - Custom metrics: passkey vs. Entra sign-in ratio, permission denial rates
-  - **Enhanced User Profile:**
-    - Extend `ApplicationUser` with custom fields: `FullName`, `Department`, `PreferredAuthMethod`
-    - Update Manage profile page to edit custom fields
-    - Sync Entra ID profile data (displayName, jobTitle) to local fields on sign-in
-  - **Security Hardening:**
-    - Enforce HTTPS/HSTS with custom origin validation for passkeys (per Microsoft docs)
-    - Add Content Security Policy headers
-    - Configure rate limiting for API endpoints
-  - **Health Checks:**
-    - Database connectivity check
-    - Entra ID availability check (token endpoint)
-    - Permission cache health
-  - **Deployment:**
-    - Document deployment to Azure App Service with managed identity
-    - Configure Entra ID app registration for production redirect URIs
-    - Database migration strategy for zero-downtime deployments
-- **Outcome:** A production-ready template for SaaS apps requiring both consumer (passkey) and enterprise (Entra ID) authentication, with comprehensive observability, secure configuration management, and operational resilience.
+  - **Secrets Management:** Azure Key Vault, User Secrets, environment-specific configuration
+  - **Logging & Telemetry:** Serilog structured logging, Application Insights integration, custom metrics
+  - **Security Hardening:** HTTPS/HSTS enforcement, Content Security Policy, rate limiting for API endpoints
+  - **Health Checks:** Database connectivity, Entra ID availability, permission cache health endpoints
+  - **Deployment Guide:** Azure App Service with managed identity, production redirect URIs, zero-downtime database migrations
+  - **Monitoring:** Application Insights dashboards for auth events, API performance, permission enforcement metrics
+- **Outcome:** A production-ready template for enterprise applications with comprehensive observability, secure configuration management, and operational resilience.
+
 
 ## Next Steps
 
-1. Implement `demo6` – Entra ID Claims → Permission Mapping: Create the demo using the copy-demo script, then add automatic role mapping based on Entra ID App Roles.
-2. Implement `demo7` – Production Hardening: Build on demo6 to add secrets management, logging, telemetry, and security hardening for production deployment.
-3. Validate all demos (demo1-demo5) for completeness and alignment with changelog achievements.
-4. Keep this roadmap updated as new .NET 10 identity features ship.
+1. Implement `demo4` – Microsoft Entra ID Integration + Claims Mapping: Add Entra ID provider integration and automatic role mapping from Entra App Roles to local permissions.
+2. Implement `demo5` – Custom Downstream APIs: Create a separate protected API project with Bearer token validation and OBO flow.
+3. Implement `demo6` – From BFF to Modular Monolith with Legacy Integration: Create the modular monolithic structure with three vertical slices (Users, Orders, Graph), focusing on legacy integration patterns with adapters.
+4. Implement `demo7` – Production Hardening: Build on demo6 to add secrets management, logging, telemetry, and security hardening for production deployment.
+5. Validate all demos (demo1-demo5) for completeness and alignment with changelog achievements.
+6. Keep this roadmap updated as new .NET 10 identity features ship.
 

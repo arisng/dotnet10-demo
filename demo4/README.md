@@ -1,8 +1,8 @@
-# Demo4 – Microsoft Entra ID Integration
+# Demo4 – Microsoft Entra ID Integration + Claims Mapping
 
 ## Goal
 
-Add Microsoft Entra ID as an external identity provider alongside local passkey authentication, supporting a hybrid identity scenario where B2C customers use passkeys while employees authenticate via Entra ID. Demonstrate how the On-Behalf-Of (OBO) flow enables server-side Microsoft Graph API calls while preserving the existing permission-based authorization system.
+Add Microsoft Entra ID as an external identity provider alongside local passkey authentication, supporting a hybrid identity scenario where B2C customers use passkeys while employees authenticate via Entra ID. Implement automatic role mapping based on Entra ID App Roles to enable centralized permission management. Demonstrate how the On-Behalf-Of (OBO) flow enables server-side Microsoft Graph API calls while preserving the existing permission-based authorization system.
 
 ## Prerequisites
 
@@ -19,22 +19,22 @@ Demo4 transforms the monolithic Blazor Web App to support **dual authentication 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Blazor Web App                           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Authentication Layer (Hybrid)                      │   │
-│  │  • Local Identity (Passkeys) ──┐                    │   │
-│  │  • Microsoft Entra ID ─────────┼─→ Claims Principal │   │
-│  └────────────────────────────────┴──────────────────────┘   │
-│                         ↓                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  Authentication Layer (Hybrid)                      │    │
+│  │  • Local Identity (Passkeys) ──┐                    │    │
+│  │  • Microsoft Entra ID ─────────┼─→ Claims Principal │    │
+│  └────────────────────────────────┴────────────────────┘    │
+│                         ↓                                   │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  Authorization Layer (Unified)                       │   │
 │  │  • IClaimsTransformation                             │   │
 │  │  • Permission-Based Policies (from demo3)            │   │
 │  └──────────────────────────────────────────────────────┘   │
-│                         ↓                                    │
+│                         ↓                                   │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  BFF APIs                                            │   │
-│  │  /api/weather, /api/users, /api/reports             │   │
-│  │  (Cookie-based, no bearer tokens)                   │   │
+│  │  /api/weather, /api/users, /api/reports              │   │
+│  │  (Cookie-based, no bearer tokens)                    │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                          ↓
@@ -112,9 +112,38 @@ public string? JobTitle { get; set; } // Synced from Graph API
 - Both local and Entra users access the same APIs with the same permission requirements
 - No bearer token validation in BFF layer (deferred to demo5 for downstream API pattern)
 
+### 7. Entra ID Claims Mapping (App Roles → Permissions)
+
+**New in Demo4:**
+- **Entra App Roles as Source of Truth:** Define App Roles (e.g., `GlobalAdmin`, `ContentManager`) in the Entra Manifest
+- **Enhanced ClaimsTransformation Middleware:**
+  - If Entra user: read `roles` claim → map to local roles → load permissions from demo3
+  - If local user: existing role lookup from database
+- **Example Mappings:**
+  - Entra App Role "GlobalAdmin" → local "Admin" role → all admin permissions
+  - Entra App Role "ContentManager" → local "Manager" role → manager permissions
+- **RoleMappingConfiguration Table:** Manage Entra App Role value → local role mappings (allows non-developers to configure)
+- **Admin UI:** Optional `RoleMappingManager.razor` component to view/edit role mappings
+- **Identity-Source Agnostic Authorization:** Both local passkey admins and Entra-authenticated admins have identical permission claims
+- **Updated `AuthStateProbe`:** Display Entra roles and their mapped local roles + permissions
+
+**Outcome:** 
+- Centralized permission management via Entra ID App Roles
+- IT admins control access without touching the application database
+- Authorization logic remains independent of identity source
+
 ## Azure Entra ID Setup
 
-### 1. Register Application in Entra Portal
+### Overview: Single App Registration (Client Only)
+
+**Demo4 Entra ID Setup = ONE App Registration:**
+- Register the **Blazor Web App** as a client application that authenticates users via Entra ID
+- Configure it to read user profile data from Microsoft Graph (server-side only)
+- No custom API exposure needed (BFF APIs are local, cookie-based)
+
+**This is different from demo5**, which requires TWO app registrations (see demo5 README for that setup).
+
+### Step-by-Step: Register Blazor Client App
 
 1. Navigate to **Azure Portal** → **Microsoft Entra ID** → **App registrations** → **New registration**
 2. **Name:** `Demo4.EntraIntegration`
@@ -149,6 +178,16 @@ public string? JobTitle { get; set; } // Synced from Graph API
 From the **Overview** page, copy:
 - **Application (client) ID:** `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
 - **Directory (tenant) ID:** `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+
+### What's NOT in Demo4 (Deferred to Demo5)
+
+**Demo4 does NOT include:**
+- ❌ Custom API app registration (the Protected API from demo5)
+- ❌ Exposing custom OAuth scopes
+- ❌ OBO (On-Behalf-Of) token exchange configuration
+- ❌ Linking client app to custom protected API
+
+**Why?** Demo4 focuses purely on client authentication via Entra ID. The BFF APIs are local and cookie-based. Custom API patterns are introduced in demo5 (see demo5 README for the additional Entra ID setup).
 
 ## Configuration
 
