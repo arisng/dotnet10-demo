@@ -1,11 +1,12 @@
-# .NET 10 Identity Workshop Roadmap
+# .NET 10 Modern Architecture Workshop
 
-This workspace hosts an incremental set of demos that teach the newest ASP.NET Core Identity capabilities shipping with .NET 10, including passkeys, dual-mode Blazor apps, RBAC, and the BFF security model. Every demo builds directly on the previous one so you can learn by doing without losing context.
+This workspace hosts an incremental set of demos that teach modern .NET 10 patterns, evolving from Identity foundations to a full Modular Monolith architecture. Key topics include passkeys, dual-mode Blazor apps, RBAC, BFF security, Entra ID integration, and vertical slice architecture. Every demo builds directly on the previous one so you can learn by doing without losing context.
 
 ## Grounded highlights (Dec 2025)
 
 - **Passkeys everywhere:** ASP.NET Core Identity’s schema version 3 plus the new Blazor Web App template deliver turnkey passkey registration, login, and Manage UI.¹ ²
 - **Out-of-the-box endpoints:** `MapAdditionalIdentityEndpoints` wires `/PasskeyCreationOptions` and `/PasskeyRequestOptions`, so our demos should keep Identity components intact instead of rewriting them.²
+- **Modern Architecture:** Evolve from a simple monolithic app to a Modular Monolith with vertical slices, demonstrating how to handle legacy integration and downstream APIs.
 - **Security guardrails:** Microsoft recommends explicit HTTPS, HSTS, and custom origin validation when necessary; we’ll surface those practices in later demos.¹
 - **Documentation enhancements:** Comprehensive `.docs/` folder structure implemented for research, issues, and agent workflows to support AI-driven development.
 - **AI agents integration:** Multi-agent architecture with Research-Agent, Implementation-Agent, and Verifier-Agent for structured .NET 10 feature development.
@@ -32,14 +33,14 @@ dotnet watch
 
 ## Demo Lineup
 
-| Demo  | Status     | Focus                                         | Depends On | Highlights                                                               |
-| ----- | ---------- | --------------------------------------------- | ---------- | ------------------------------------------------------------------------ |
-| demo1 | Completed  | Identity scaffolding baseline                 | —          | CLI scaffolding, cookie auth foundation                                  |
-| demo2 | Completed  | Dual-mode diagnostics + Passkeys              | demo1      | Auth state probe, full passkey implementation, WASM caching              |
-| demo3 | Completed  | BFF APIs + Permission-Based RBAC              | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
-| demo4 | Completed  | Microsoft Entra ID + Claims Mapping         | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth |
-| demo5 | Completed  | Custom Downstream APIs (Microservices)        | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
-| demo6 | Planned    | From BFF to Modular Monolith                 | demo5      | Vertical slicing, legacy integration, three integration patterns (local, legacy, modern) |
+| Demo  | Status     | Focus                                          | Depends On | Highlights                                                               |
+| ----- | ---------- | ---------------------------------------------  | ---------- | ------------------------------------------------------------------------ |
+| demo1 | Completed  | Identity scaffolding baseline                  | —          | CLI scaffolding, cookie auth foundation                                  |
+| demo2 | Completed  | Dual-mode diagnostics + Passkeys               | demo1      | Auth state probe, full passkey implementation, WASM caching              |
+| demo3 | Completed  | BFF APIs + Permission-Based RBAC               | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
+| demo4 | Completed  | Microsoft Entra ID + Claims Mapping            | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth |
+| demo5 | Completed  | Custom Downstream APIs (Microservices)         | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
+| demo6 | Planned    | From BFF to Modular Monolith                   | demo5      | Vertical slicing, legacy integration, three integration patterns (local, legacy, modern) |
 | demo7 | Planned    | Production hardening + Entra ID claims mapping | demo6      | Secrets, logging, monitoring, Entra App Roles → permissions, HTTPS enforcement |
 
 ## Demo Details
@@ -184,4 +185,3 @@ dotnet watch
 4. Implement `demo7` – Production Hardening: Build on demo6 to add secrets management, logging, telemetry, and security hardening for production deployment.
 5. Validate all demos (demo1-demo5) for completeness and alignment with changelog achievements.
 6. Keep this roadmap updated as new .NET 10 identity features ship.
-
