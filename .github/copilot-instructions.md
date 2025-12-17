@@ -22,7 +22,7 @@ Standard layout for demos 3+:
 ```
 demo<N>/
 ├── .docs/                      # Demo-specific documentation
-│   ├── issues/                 # Demo-specific issue investigations
+│   ├── issues/                 # Demo-specific markdown-based issue (deprecated, should use beads issues system instead)
 │   └── research/               # Demo-specific implementation notes
 ├── Demo<N>.<Name>/             # Server (Blazor Server, APIs, Identity)
 ├── Demo<N>.<Name>.Client/      # Client (Blazor WASM, prerendered)
@@ -217,7 +217,7 @@ Cross-cutting documentation that applies to the entire workspace:
 
 | Folder | Purpose | Naming Pattern |
 |--------|---------|----------------|
-| `issues/` | Investigation docs (GitHub issue format) with root cause analysis and resolutions | `YYMMDD_<kebab-case-title>.md` |
+| `issues/` | markdown-based issue (deprecated, should use beads issues system instead) | `YYMMDD_<kebab-case-title>.md` |
 | `research/` | Research findings that ground implementation plans with verified facts | `YYMMDD_<kebab-case-title>.md` |
 | `agent/` | Agentic AI workflow docs—custom agent architecture, orchestration patterns | Descriptive names |
 
@@ -227,7 +227,7 @@ Starting from demo5, each demo folder may contain its own `.docs/` folder for de
 ```
 demo<N>/
 ├── .docs/
-│   ├── issues/      # Demo-specific issues and resolutions
+│   ├── issues/      # Demo-specific markdown-based issue (deprecated, should use beads issues system instead)
 │   └── research/    # Demo-specific research and implementation notes
 ├── Demo<N>.<Name>/
 ├── Demo<N>.<Name>.Client/
@@ -235,7 +235,6 @@ demo<N>/
 ```
 
 **When to use demo-level `.docs/`:**
-- Issues specific to that demo's implementation
 - Research relevant only to that demo's feature set
 - Implementation decisions that don't affect other demos
 
