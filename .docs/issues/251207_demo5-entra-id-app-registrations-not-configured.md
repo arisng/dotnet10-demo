@@ -1,7 +1,7 @@
 # Demo5 Cannot Be Tested Due to Missing Entra ID App Registrations
 
 **Date:** 2025-12-07
-**Type:** Bug / Technical Issue
+**Type:** Bug
 **Severity:** High
 **Status:** Investigating
 
