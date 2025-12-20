@@ -1,18 +1,28 @@
 {
     "servers": {
-        "sqlite": {
-            "command": "docker",
+        "filesystem": {
+            "command": "npx",
             "args": [
-                "run",
-                "-i",
-                "--rm",
-                "-v",
-                "${workspaceFolder}/demo2/Demo2.DualModeHandoff/Demo2.DualModeHandoff/Data:/mcp",
-                "mcp/sqlite",
-                "--db-path",
-                "/mcp/app.db"
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "${env:USERPROFILE}/.claude/skills",
+                "${env:APPDATA}/Code/User/prompts",
+                "${workspaceFolder}"
             ]
         },
+        // "sqlite": {
+        //     "command": "docker",
+        //     "args": [
+        //         "run",
+        //         "-i",
+        //         "--rm",
+        //         "-v",
+        //         "${workspaceFolder}/demo2/Demo2.DualModeHandoff/Demo2.DualModeHandoff/Data:/mcp",
+        //         "mcp/sqlite",
+        //         "--db-path",
+        //         "/mcp/app.db"
+        //     ]
+        // },
         "memory": {
             "command": "npx",
             "args": [
