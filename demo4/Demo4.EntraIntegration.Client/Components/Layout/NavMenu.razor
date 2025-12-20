@@ -44,6 +44,14 @@
             </div>
         </AuthorizeView>
 
+        <AuthorizeView Roles="Admin">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/role-mappings">
+                    <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Role Mappings
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
         <AuthorizeView Roles="Admin,Manager,User">
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="reports">

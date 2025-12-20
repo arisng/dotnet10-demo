@@ -8,9 +8,11 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.Extensions.Logging
 @using Demo4.EntraIntegration.Client.Components.Diagnostics
+@using Demo4.EntraIntegration.Shared.Models
 @implements IDisposable
 @inject ILogger<AuthStateProbe> Logger
 @inject NavigationManager Navigation
+@inject HttpClient HttpClient
 
 @using Microsoft.AspNetCore.Components
 
@@ -146,6 +148,51 @@
     </div>
 </section>
 
+@if (_graphProfile != null || _isLoadingGraphData)
+{
+    <section class="mb-5">
+        <h2 class="h5">Microsoft Graph API Data</h2>
+        @if (_isLoadingGraphData)
+        {
+            <div class="alert alert-info">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Loading Graph API data...
+            </div>
+        }
+        else if (_graphProfile != null)
+        {
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h3 class="h6 mb-0 me-3">User Profile</h3>
+                    @if (!string.IsNullOrEmpty(_profilePhotoUrl))
+                    {
+                        <img src="@_profilePhotoUrl" alt="Profile Photo" 
+                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />
+                    }
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Display Name</dt>
+                        <dd class="col-sm-9">@_graphProfile.DisplayName</dd>
+                        
+                        <dt class="col-sm-3">Job Title</dt>
+                        <dd class="col-sm-9">@(_graphProfile.JobTitle ?? "Not specified")</dd>
+                        
+                        <dt class="col-sm-3">Email</dt>
+                        <dd class="col-sm-9">@_graphProfile.Mail</dd>
+                        
+                        <dt class="col-sm-3">User Principal Name</dt>
+                        <dd class="col-sm-9">@_graphProfile.UserPrincipalName</dd>
+                        
+                        <dt class="col-sm-3">Graph ID</dt>
+                        <dd class="col-sm-9"><code>@_graphProfile.Id</code></dd>
+                    </dl>
+                </div>
+            </div>
+        }
+    </section>
+}
+
 @code {
     [Parameter]
     [SupplyParameterFromQuery(Name = "RenderDelayMs")]
@@ -159,6 +206,11 @@
     private bool _isDelaying = false;
     private bool ClientHandshakeComplete => _events.Any(e => e.Phase.Contains("WASM initialized"));
     private Task<AuthenticationState>? _lastAuthStateTask;
+    
+    // Entra-specific data
+    private UserProfile? _graphProfile;
+    private string? _profilePhotoUrl;
+    private bool _isLoadingGraphData;
 
     protected override async Task OnInitializedAsync()
     {
@@ -256,7 +308,101 @@
             .OrderBy(claim => claim.Type, StringComparer.Ordinal)
             .Select(claim => $"{claim.Type} = {claim.Value}");
 
-        return $"\nUser: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nClaims:\n - {string.Join("\n - ", claims)}";
+        // Detect authentication provider
+        var oid = principal.FindFirst("oid")?.Value; // Entra Object ID
+        var authProvider = !string.IsNullOrEmpty(oid) ? "Microsoft Entra ID" : "Local (Identity)";
+
+        var result = $"\nUser: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nProvider: {authProvider}";
+
+        if (!string.IsNullOrEmpty(oid))
+        {
+            // Show key Entra claims
+            var entraClaims = new[]
+            {
+                ("oid", principal.FindFirst("oid")?.Value),
+                ("tid", principal.FindFirst("tid")?.Value), // Tenant ID
+                ("preferred_username", principal.FindFirst("preferred_username")?.Value),
+                ("name", principal.FindFirst("name")?.Value)
+            }
+            .Where(c => !string.IsNullOrEmpty(c.Value))
+            .Select(c => $"{c.Item1} = {c.Value}");
+
+            if (entraClaims.Any())
+            {
+                result += "\nEntra Claims:\n - " + string.Join("\n - ", entraClaims);
+            }
+        }
+
+        result += "\nAll Claims:\n - " + string.Join("\n - ", claims);
+        return result;
+    }
+
+    private async Task LoadGraphDataAsync(ClaimsPrincipal principal)
+    {
+        // Only load Graph data for authenticated Entra users
+        if (principal.Identity?.IsAuthenticated != true)
+        {
+            _graphProfile = null;
+            _profilePhotoUrl = null;
+            return;
+        }
+
+        var oid = principal.FindFirst("oid")?.Value;
+        if (string.IsNullOrEmpty(oid))
+        {
+            // Not an Entra user
+            _graphProfile = null;
+            _profilePhotoUrl = null;
+            return;
+        }
+
+        try
+        {
+            _isLoadingGraphData = true;
+            StateHasChanged();
+
+            // Load user profile from Graph API
+            _graphProfile = await HttpClient.GetFromJsonAsync<UserProfile>("/api/graph/profile");
+            
+            // Load profile photo
+            var photoBytes = await HttpClient.GetByteArrayAsync("/api/graph/profile/photo");
+            if (photoBytes != null && photoBytes.Length > 0)
+            {
+                _profilePhotoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(photoBytes)}";
+            }
+            else
+            {
+                _profilePhotoUrl = null;
+            }
+
+            Logger.LogInformation("Loaded Graph API data for Entra user: {DisplayName}", _graphProfile?.DisplayName);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized || 
+                                              ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            // User not authenticated or doesn't have Graph API access
+            Logger.LogWarning("Graph API access denied for Entra user (Status: {StatusCode})", ex.StatusCode);
+            _graphProfile = null;
+            _profilePhotoUrl = null;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // Profile or photo not found
+            Logger.LogInformation("Graph API data not available for Entra user");
+            _graphProfile = null;
+            _profilePhotoUrl = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load Graph API data for Entra user");
+            _graphProfile = null;
+            _profilePhotoUrl = null;
+        }
+        finally
+        {
+            _isLoadingGraphData = false;
+            StateHasChanged();
+        }
     }
 
     private async Task OnAuthenticationStateChanged(Task<AuthenticationState> task)
@@ -278,6 +424,10 @@
         }
         
         var state = await task;
+        
+        // Load Graph API data for Entra users
+        await LoadGraphDataAsync(state.User);
+        
         // This event fires when authentication state changes (login, logout, token refresh).
         // In InteractiveAuto scenarios, this may also fire during the WASM handoff if the
         // PersistentComponentState deserialization triggers a state change notification.

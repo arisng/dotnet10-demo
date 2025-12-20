@@ -273,6 +273,97 @@ graphApi.MapGet("/profile/photo", async (IGraphService graphService) =>
 })
 .RequireAuthorization(); // Any authenticated user can access their own photo
 
+// Admin Role Mapping Management API
+var adminApi = app.MapGroup("/api/admin");
+
+adminApi.MapGet("/roles", async (RoleManager<IdentityRole> roleManager) =>
+{
+    var roles = await roleManager.Roles
+        .OrderBy(r => r.Name)
+        .Select(r => r.Name!)
+        .ToListAsync();
+    return Results.Ok(roles);
+})
+.RequirePermission("admin.manage-roles");
+
+adminApi.MapPost("/role-mappings", async (CreateRoleMappingDto input, ApplicationDbContext db) =>
+{
+    // Validate that the local role exists
+    var roleExists = await db.Roles.AnyAsync(r => r.Name == input.LocalRoleName);
+    if (!roleExists)
+    {
+        return Results.BadRequest($"Local role '{input.LocalRoleName}' does not exist.");
+    }
+
+    // Check for duplicate Entra role
+    var existing = await db.RoleMappingConfigurations
+        .FirstOrDefaultAsync(rmc => rmc.EntraAppRoleValue == input.EntraAppRoleValue);
+    if (existing != null)
+    {
+        return Results.Conflict($"A mapping already exists for Entra role '{input.EntraAppRoleValue}'.");
+    }
+
+    var mapping = new RoleMappingConfiguration
+    {
+        EntraAppRoleValue = input.EntraAppRoleValue,
+        LocalRoleName = input.LocalRoleName,
+        CreatedAt = DateTime.UtcNow,
+        Notes = input.Notes
+    };
+
+    db.RoleMappingConfigurations.Add(mapping);
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/api/admin/role-mappings/{mapping.Id}", mapping);
+})
+.RequirePermission("admin.manage-roles");
+
+adminApi.MapPut("/role-mappings/{id:int}", async (int id, UpdateRoleMappingDto input, ApplicationDbContext db) =>
+{
+    var mapping = await db.RoleMappingConfigurations.FindAsync(id);
+    if (mapping == null)
+    {
+        return Results.NotFound();
+    }
+
+    // Validate that the local role exists
+    var roleExists = await db.Roles.AnyAsync(r => r.Name == input.LocalRoleName);
+    if (!roleExists)
+    {
+        return Results.BadRequest($"Local role '{input.LocalRoleName}' does not exist.");
+    }
+
+    // Check for duplicate Entra role (excluding this mapping)
+    var duplicate = await db.RoleMappingConfigurations
+        .FirstOrDefaultAsync(rmc => rmc.Id != id && rmc.EntraAppRoleValue == input.EntraAppRoleValue);
+    if (duplicate != null)
+    {
+        return Results.Conflict($"A mapping already exists for Entra role '{input.EntraAppRoleValue}'.");
+    }
+
+    mapping.EntraAppRoleValue = input.EntraAppRoleValue;
+    mapping.LocalRoleName = input.LocalRoleName;
+    mapping.Notes = input.Notes;
+
+    await db.SaveChangesAsync();
+    return Results.Ok(mapping);
+})
+.RequirePermission("admin.manage-roles");
+
+adminApi.MapDelete("/role-mappings/{id:int}", async (int id, ApplicationDbContext db) =>
+{
+    var mapping = await db.RoleMappingConfigurations.FindAsync(id);
+    if (mapping == null)
+    {
+        return Results.NotFound();
+    }
+
+    db.RoleMappingConfigurations.Remove(mapping);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+.RequirePermission("admin.manage-roles");
+
 await DbSeeder.SeedDataAsync(app.Services);
 
 app.Run();
