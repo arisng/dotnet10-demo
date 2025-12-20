@@ -1,5 +1,8 @@
 using Microsoft.Identity.Abstractions;
+using Microsoft.Identity.Web;
 using Demo4.EntraIntegration.Shared.Models;
+using Demo4.EntraIntegration.Client.Services;
+using System.Security.Claims;
 
 namespace Demo4.EntraIntegration.Services;
 
@@ -10,11 +13,15 @@ namespace Demo4.EntraIntegration.Services;
 public class GraphService : IGraphService
 {
     private readonly IDownstreamApi _downstreamApi;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<GraphService> _logger;
 
-    public GraphService(IDownstreamApi downstreamApi, ILogger<GraphService> logger)
+    private const string EntraAuthenticationScheme = "MicrosoftEntra";
+
+    public GraphService(IDownstreamApi downstreamApi, IHttpContextAccessor httpContextAccessor, ILogger<GraphService> logger)
     {
         _downstreamApi = downstreamApi;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
@@ -22,15 +29,41 @@ public class GraphService : IGraphService
     {
         try
         {
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                _logger.LogWarning("Graph profile requested but no authenticated user principal is available");
+                return null;
+            }
+
+            _logger.LogInformation(
+                "Graph token context: authType={AuthType}, oid={Oid}, tid={Tid}, uid={Uid}, utid={Utid}, msal_account_id={MsalAccountId}, preferred_username={PreferredUsername}, login_hint={LoginHint}",
+                user.Identity?.AuthenticationType,
+                user.FindFirst("oid")?.Value,
+                user.FindFirst("tid")?.Value,
+                user.FindFirst(ClaimConstants.UniqueObjectIdentifier)?.Value,
+                user.FindFirst(ClaimConstants.UniqueTenantIdentifier)?.Value,
+                user.FindFirst("msal_account_id")?.Value ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/msal_account_id")?.Value,
+                user.FindFirst(ClaimConstants.PreferredUserName)?.Value,
+                user.GetLoginHint());
+
             var result = await _downstreamApi.GetForUserAsync<UserProfile>(
                 "DownstreamApi",
                 options =>
                 {
                     options.RelativePath = "me";
-                });
+                    options.AcquireTokenOptions.AuthenticationOptionsName = EntraAuthenticationScheme;
+                },
+                user: user);
 
             _logger.LogInformation("Successfully fetched user profile from Microsoft Graph");
             return result;
+        }
+        catch (MicrosoftIdentityWebChallengeUserException)
+        {
+            // Let the API layer convert this to a challenge response.
+            throw;
         }
         catch (Exception ex)
         {
@@ -43,12 +76,33 @@ public class GraphService : IGraphService
     {
         try
         {
+            var user = _httpContextAccessor.HttpContext?.User;
+
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                _logger.LogWarning("Graph photo requested but no authenticated user principal is available");
+                return null;
+            }
+
+            _logger.LogInformation(
+                "Graph token context (photo): authType={AuthType}, oid={Oid}, tid={Tid}, uid={Uid}, utid={Utid}, msal_account_id={MsalAccountId}, preferred_username={PreferredUsername}, login_hint={LoginHint}",
+                user.Identity?.AuthenticationType,
+                user.FindFirst("oid")?.Value,
+                user.FindFirst("tid")?.Value,
+                user.FindFirst(ClaimConstants.UniqueObjectIdentifier)?.Value,
+                user.FindFirst(ClaimConstants.UniqueTenantIdentifier)?.Value,
+                user.FindFirst("msal_account_id")?.Value ?? user.FindFirst("http://schemas.microsoft.com/identity/claims/msal_account_id")?.Value,
+                user.FindFirst(ClaimConstants.PreferredUserName)?.Value,
+                user.GetLoginHint());
+
             using var response = await _downstreamApi.GetForUserAsync<HttpResponseMessage>(
                 "DownstreamApi",
                 options =>
                 {
                     options.RelativePath = "me/photo/$value";
-                });
+                    options.AcquireTokenOptions.AuthenticationOptionsName = EntraAuthenticationScheme;
+                },
+                user: user);
 
             if (response?.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -59,6 +113,11 @@ public class GraphService : IGraphService
 
             _logger.LogWarning("User photo not available (Status: {StatusCode})", response?.StatusCode);
             return null;
+        }
+        catch (MicrosoftIdentityWebChallengeUserException)
+        {
+            // Let the API layer convert this to a challenge response.
+            throw;
         }
         catch (Exception ex)
         {

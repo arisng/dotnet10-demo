@@ -6,6 +6,11 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.Services.AddAuthorizationCore(options =>
 {
+    options.AddPolicy("entra.user", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim("oid")
+        .RequireClaim("tid"));
+
     options.AddPolicy("weather.read", policy => policy.RequireClaim("permission", "weather.read"));
     options.AddPolicy("weather.write", policy => policy.RequireClaim("permission", "weather.write"));
     options.AddPolicy("users.read", policy => policy.RequireClaim("permission", "users.read"));
@@ -24,5 +29,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<IWeatherService, ClientWeatherService>();
 builder.Services.AddScoped<IUserService, ClientUserService>();
 builder.Services.AddScoped<IReportService, ClientReportService>();
+builder.Services.AddScoped<IGraphService, ClientGraphService>();
 
 await builder.Build().RunAsync();

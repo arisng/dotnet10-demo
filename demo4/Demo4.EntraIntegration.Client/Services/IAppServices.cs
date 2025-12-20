@@ -19,3 +19,9 @@ public interface IReportService
     Task<List<ReportDto>> GetReportsAsync();
     Task<byte[]> ExportReportsAsync();
 }
+
+public interface IGraphService
+{
+    Task<UserProfile?> GetUserProfileAsync();
+    Task<byte[]?> GetUserPhotoAsync();
+}

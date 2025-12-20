@@ -1,0 +1,166 @@
+@page "/entra-profile"
+@using Demo4.EntraIntegration.Shared.Models
+@using Demo4.EntraIntegration.Client.Services
+@using System.Net
+@using System.Security.Authentication
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@rendermode InteractiveAuto
+@attribute [Authorize(Policy = "entra.user")]
+@inject IGraphService GraphService
+
+<PageTitle>Profile</PageTitle>
+
+<h1>Microsoft Graph Profile</h1>
+
+<p>This component demonstrates Microsoft Graph API integration by displaying your profile data and photo.</p>
+
+@if (error != null)
+{
+    <div class="alert alert-danger">
+        <strong>Error:</strong> @error
+    </div>
+}
+else if (isLoading)
+{
+    <p><em>Loading profile...</em></p>
+}
+else if (profile == null)
+{
+    <div class="alert alert-warning">
+        <strong>Profile not available.</strong>
+        <div class="small text-muted">The Graph API did not return a profile. Verify you signed in with Entra and granted Graph scopes (e.g. `User.Read`).</div>
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            @if (photoBytes != null)
+            {
+                <div class="text-center mb-3">
+                    <img src="data:image/jpeg;base64,@Convert.ToBase64String(photoBytes)"
+                         alt="Profile Photo"
+                         class="img-fluid rounded-circle"
+                         style="max-width: 200px; max-height: 200px;" />
+                </div>
+            }
+            else
+            {
+                <div class="text-center mb-3">
+                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center"
+                         style="width: 200px; height: 200px;">
+                        <i class="bi bi-person-fill" style="font-size: 4rem; color: #6c757d;"></i>
+                    </div>
+                    <p class="text-muted mt-2">No profile photo available</p>
+                </div>
+            }
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Profile Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        @if (!string.IsNullOrEmpty(profile.DisplayName))
+                        {
+                            <dt class="col-sm-4">Display Name</dt>
+                            <dd class="col-sm-8">@profile.DisplayName</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(profile.JobTitle))
+                        {
+                            <dt class="col-sm-4">Job Title</dt>
+                            <dd class="col-sm-8">@profile.JobTitle</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(profile.Mail))
+                        {
+                            <dt class="col-sm-4">Email</dt>
+                            <dd class="col-sm-8">@profile.Mail</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(profile.UserPrincipalName))
+                        {
+                            <dt class="col-sm-4">User Principal Name</dt>
+                            <dd class="col-sm-8">@profile.UserPrincipalName</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(profile.Id))
+                        {
+                            <dt class="col-sm-4">User ID</dt>
+                            <dd class="col-sm-8"><code>@profile.Id</code></dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private UserProfile? profile;
+    private byte[]? photoBytes;
+    private string? error;
+    private bool isLoading = true;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask == null)
+        {
+            isLoading = false;
+            return;
+        }
+
+        var authState = await AuthenticationStateTask;
+        if (authState?.User?.Identity?.IsAuthenticated != true)
+        {
+            error = "You must sign in to view your profile.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            // Load profile and photo in parallel
+            var profileTask = GraphService.GetUserProfileAsync();
+            var photoTask = GraphService.GetUserPhotoAsync();
+
+            await Task.WhenAll(profileTask, photoTask);
+
+            profile = await profileTask;
+            photoBytes = await photoTask;
+
+            if (profile == null)
+            {
+                // ClientGraphService returns null for 401/403/404; treat this as an empty state.
+                // The UI will show a "Profile not available" warning panel.
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ex is UnauthorizedAccessException ||
+               (ex is HttpRequestException httpEx && httpEx.StatusCode == HttpStatusCode.Forbidden))
+            {
+                error = "You don't have permission to access your profile.";
+            }
+            else if (ex is AuthenticationException ||
+                    (ex is HttpRequestException httpEx2 && httpEx2.StatusCode == HttpStatusCode.Unauthorized))
+            {
+                error = "You must sign in to view your profile.";
+            }
+            else
+            {
+                error = $"Failed to load profile: {ex.Message}";
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

@@ -11,10 +11,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Identity.Web;
 using Microsoft.Net.Http.Headers;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +65,10 @@ builder.Services.AddScoped<IEntraUserProvisioningService, EntraUserProvisioningS
 
 // Register policies for Blazor [Authorize] attributes
 builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("entra.user", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim("oid")
+        .RequireClaim("tid"))
     .AddPolicy("weather.read", policy => policy.AddRequirements(new PermissionRequirement("weather.read")))
     .AddPolicy("weather.write", policy => policy.AddRequirements(new PermissionRequirement("weather.write")))
     .AddPolicy("users.read", policy => policy.AddRequirements(new PermissionRequirement("users.read")))
@@ -78,6 +84,7 @@ builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
         options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+        options.DefaultChallengeScheme = IdentityConstants.ExternalScheme;
     })
     .AddIdentityCookies();
 
@@ -90,6 +97,9 @@ builder.Services.AddAuthentication()
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddDownstreamApi("DownstreamApi", builder.Configuration.GetSection("DownstreamApi"))
     .AddInMemoryTokenCaches();
+
+// Used to turn MIW token acquisition exceptions into interactive challenges.
+builder.Services.AddScoped<MicrosoftIdentityConsentAndConditionalAccessHandler>();
 
 // Configure OIDC events for auto-provisioning
 builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
@@ -116,6 +126,64 @@ builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
             }
 
             logger.LogInformation("OnTokenValidated: Entra user detected with OID: {Oid}", oid);
+
+            // Ensure token-acquisition hints are present on the principal that will be stored in the auth cookie.
+            // Microsoft.Identity.Web uses these to find the MSAL account / login hint for AcquireTokenSilent.
+            if (principal.Identity is ClaimsIdentity claimsIdentity)
+            {
+                var tid = principal.FindFirstValue("tid")
+                          ?? principal.FindFirstValue(Microsoft.Identity.Web.ClaimConstants.TenantId);
+
+                var preferredUsername = principal.FindFirstValue(Microsoft.Identity.Web.ClaimConstants.PreferredUserName)
+                                        ?? principal.FindFirstValue("preferred_username")
+                                        ?? principal.FindFirstValue(ClaimTypes.Upn)
+                                        ?? principal.FindFirstValue(ClaimTypes.Email);
+
+                // Some MIW/MSAL code paths look for uid/utid (home object/tenant) to compose HomeAccountId.
+                // For Entra ID users, oid/tid are a good approximation in this workshop.
+                if (!string.IsNullOrWhiteSpace(oid) && !claimsIdentity.HasClaim(c => c.Type == Microsoft.Identity.Web.ClaimConstants.UniqueObjectIdentifier))
+                {
+                    claimsIdentity.AddClaim(new Claim(Microsoft.Identity.Web.ClaimConstants.UniqueObjectIdentifier, oid));
+                }
+
+                if (!string.IsNullOrWhiteSpace(tid) && !claimsIdentity.HasClaim(c => c.Type == Microsoft.Identity.Web.ClaimConstants.UniqueTenantIdentifier))
+                {
+                    claimsIdentity.AddClaim(new Claim(Microsoft.Identity.Web.ClaimConstants.UniqueTenantIdentifier, tid));
+                }
+
+                if (!string.IsNullOrWhiteSpace(preferredUsername) && !claimsIdentity.HasClaim(c => c.Type == Microsoft.Identity.Web.ClaimConstants.PreferredUserName))
+                {
+                    claimsIdentity.AddClaim(new Claim(Microsoft.Identity.Web.ClaimConstants.PreferredUserName, preferredUsername));
+                }
+
+                // Add login_hint alias as well (some diagnostic paths look for it).
+                if (!string.IsNullOrWhiteSpace(preferredUsername) && !claimsIdentity.HasClaim(c => c.Type == Microsoft.Identity.Web.Constants.LoginHint))
+                {
+                    claimsIdentity.AddClaim(new Claim(Microsoft.Identity.Web.Constants.LoginHint, preferredUsername));
+                }
+
+                // Ensure both common claim type variants exist for the MSAL account id.
+                var msalAccountId = principal.GetMsalAccountId();
+                if (string.IsNullOrWhiteSpace(msalAccountId) && !string.IsNullOrWhiteSpace(oid) && !string.IsNullOrWhiteSpace(tid))
+                {
+                    msalAccountId = $"{oid}.{tid}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(msalAccountId))
+                {
+                    const string msalAccountIdLegacyClaimType = "http://schemas.microsoft.com/identity/claims/msal_account_id";
+
+                    if (!claimsIdentity.HasClaim(c => c.Type == "msal_account_id"))
+                    {
+                        claimsIdentity.AddClaim(new Claim("msal_account_id", msalAccountId));
+                    }
+
+                    if (!claimsIdentity.HasClaim(c => c.Type == msalAccountIdLegacyClaimType))
+                    {
+                        claimsIdentity.AddClaim(new Claim(msalAccountIdLegacyClaimType, msalAccountId));
+                    }
+                }
+            }
 
             try
             {
@@ -180,6 +248,9 @@ else
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 
@@ -255,28 +326,44 @@ reportsApi.MapGet("/export", async (IReportService service) =>
 // Graph API endpoints
 var graphApi = app.MapGroup("/api/graph");
 
-graphApi.MapGet("/profile", async (IGraphService graphService) =>
+graphApi.MapGet("/profile", async (IGraphService graphService, [FromServices] MicrosoftIdentityConsentAndConditionalAccessHandler cca) =>
 {
-    var profile = await graphService.GetUserProfileAsync();
-    return profile != null ? Results.Ok(profile) : Results.NotFound();
-})
-.RequireAuthorization(); // Any authenticated user can access their own profile
-
-graphApi.MapGet("/profile/photo", async (IGraphService graphService) =>
-{
-    var photoBytes = await graphService.GetUserPhotoAsync();
-    if (photoBytes == null)
+    try
     {
-        return Results.NotFound();
+        var profile = await graphService.GetUserProfileAsync();
+        return profile != null ? Results.Ok(profile) : Results.NotFound();
     }
-    return Results.File(photoBytes, "image/jpeg");
+    catch (MicrosoftIdentityWebChallengeUserException ex)
+    {
+        cca.HandleException(ex);
+        return Results.Empty;
+    }
 })
-.RequireAuthorization(); // Any authenticated user can access their own photo
+.RequireAuthorization("entra.user");
+
+graphApi.MapGet("/profile/photo", async (IGraphService graphService, [FromServices] MicrosoftIdentityConsentAndConditionalAccessHandler cca) =>
+{
+    try
+    {
+        var photoBytes = await graphService.GetUserPhotoAsync();
+        if (photoBytes == null)
+        {
+            return Results.NotFound();
+        }
+        return Results.File(photoBytes, "image/jpeg");
+    }
+    catch (MicrosoftIdentityWebChallengeUserException ex)
+    {
+        cca.HandleException(ex);
+        return Results.Empty;
+    }
+})
+.RequireAuthorization("entra.user");
 
 // Admin Role Mapping Management API
 var adminApi = app.MapGroup("/api/admin");
 
-adminApi.MapGet("/roles", async (RoleManager<IdentityRole> roleManager) =>
+adminApi.MapGet("/roles", async ([FromServices] RoleManager<IdentityRole> roleManager) =>
 {
     var roles = await roleManager.Roles
         .OrderBy(r => r.Name)

@@ -45,3 +45,36 @@ public class ClientReportService(HttpClient http) : IReportService
         return await http.GetByteArrayAsync("/api/reports/export");
     }
 }
+
+public class ClientGraphService(HttpClient http) : IGraphService
+{
+    public async Task<UserProfile?> GetUserProfileAsync()
+    {
+        using var response = await http.GetAsync("/api/graph/profile");
+
+        if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
+            or System.Net.HttpStatusCode.Forbidden
+            or System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<UserProfile>();
+    }
+
+    public async Task<byte[]?> GetUserPhotoAsync()
+    {
+        using var response = await http.GetAsync("/api/graph/profile/photo");
+
+        if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
+            or System.Net.HttpStatusCode.Forbidden
+            or System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync();
+    }
+}

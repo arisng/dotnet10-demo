@@ -1,4 +1,5 @@
 using Demo4.EntraIntegration.Data;
+using Demo4.EntraIntegration.Client.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
@@ -60,6 +61,9 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
             
             // Update profile on each login
             await UpdateUserProfileAsync(existingUser, principal, cancellationToken);
+
+            // Ensure key Entra claims are persisted as Identity user claims (durable across requests)
+            await EnsureDurableEntraClaimsAsync(existingUser, principal);
             
             return existingUser;
         }
@@ -67,9 +71,61 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
         // Create new user
         var user = await CreateUserAsync(principal, oid, cancellationToken);
 
+        // Ensure key Entra claims are persisted as Identity user claims (durable across requests)
+        await EnsureDurableEntraClaimsAsync(user, principal);
+
         _logger.LogInformation("Successfully provisioned Entra user: {Email} (ID: {UserId})", user.Email, user.Id);
 
         return user;
+    }
+
+    private async Task EnsureDurableEntraClaimsAsync(ApplicationUser user, ClaimsPrincipal principal)
+    {
+        var oid = principal.GetObjectId() ?? user.EntraObjectId;
+        var tid = principal.FindFirstValue("tid")
+                  ?? principal.FindFirstValue("http://schemas.microsoft.com/identity/claims/tenantid");
+
+        // Microsoft.Identity.Web relies on an account identifier (msal_account_id) and/or login hint
+        // to locate the user's MSAL account in the token cache.
+        var preferredUsername = principal.FindFirstValue("preferred_username")
+                                ?? principal.FindFirstValue(ClaimTypes.Upn)
+                                ?? principal.FindFirstValue(ClaimTypes.Email)
+                                ?? user.Email;
+
+        var msalAccountId = principal.GetMsalAccountId();
+        if (string.IsNullOrWhiteSpace(msalAccountId) && !string.IsNullOrWhiteSpace(oid) && !string.IsNullOrWhiteSpace(tid))
+        {
+            msalAccountId = $"{oid}.{tid}";
+        }
+
+        var desired = new List<Claim>
+        {
+            new("auth_provider", "entra")
+        };
+
+        if (!string.IsNullOrWhiteSpace(oid)) desired.Add(new Claim("oid", oid));
+        if (!string.IsNullOrWhiteSpace(tid)) desired.Add(new Claim("tid", tid));
+        if (!string.IsNullOrWhiteSpace(preferredUsername)) desired.Add(new Claim("preferred_username", preferredUsername));
+        if (!string.IsNullOrWhiteSpace(msalAccountId)) desired.Add(new Claim("msal_account_id", msalAccountId));
+
+        var existing = await _userManager.GetClaimsAsync(user);
+
+        foreach (var claim in desired)
+        {
+            if (existing.Any(c => c.Type == claim.Type && c.Value == claim.Value))
+            {
+                continue;
+            }
+
+            // If the claim type exists with a different value, replace it.
+            var toRemove = existing.Where(c => c.Type == claim.Type).ToList();
+            foreach (var old in toRemove)
+            {
+                await _userManager.RemoveClaimAsync(user, old);
+            }
+
+            await _userManager.AddClaimAsync(user, claim);
+        }
     }
 
     private async Task<ApplicationUser> CreateUserAsync(ClaimsPrincipal principal, string oid, CancellationToken cancellationToken)
@@ -290,20 +346,10 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
                 user.DisplayName = name;
             }
 
-            // Fetch extended profile from Graph API
-            using var scope = _serviceProvider.CreateScope();
-            var graphService = scope.ServiceProvider.GetRequiredService<IGraphService>();
-
-            var profile = await graphService.GetUserProfileAsync();
-            if (profile != null)
-            {
-                user.DisplayName = profile.DisplayName ?? user.DisplayName;
-                user.JobTitle = profile.JobTitle;
-
-                await _userManager.UpdateAsync(user);
-                _logger.LogInformation("Updated Graph profile for user {Email}: {DisplayName}, {JobTitle}",
-                    user.Email, profile.DisplayName, profile.JobTitle);
-            }
+            // Intentionally not calling Microsoft Graph here.
+            // This method runs during the OIDC authentication event pipeline, where user token acquisition
+            // (and the MSAL user account context) may not be fully established yet.
+            await _userManager.UpdateAsync(user);
         }
         catch (Exception ex)
         {

@@ -24,6 +24,21 @@ public class PersistentAuthenticationStateProvider(PersistentComponentState stat
             new Claim(ClaimTypes.Email, userInfo.Email)
         };
 
+        if (!string.IsNullOrWhiteSpace(userInfo.AuthProvider))
+        {
+            claims.Add(new Claim("auth_provider", userInfo.AuthProvider));
+        }
+
+        if (!string.IsNullOrWhiteSpace(userInfo.EntraObjectId))
+        {
+            claims.Add(new Claim("oid", userInfo.EntraObjectId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(userInfo.EntraTenantId))
+        {
+            claims.Add(new Claim("tid", userInfo.EntraTenantId));
+        }
+
         foreach (var role in userInfo.Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));

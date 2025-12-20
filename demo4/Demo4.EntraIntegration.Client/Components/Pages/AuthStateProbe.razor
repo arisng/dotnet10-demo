@@ -309,23 +309,41 @@
             .Select(claim => $"{claim.Type} = {claim.Value}");
 
         // Detect authentication provider
+        var authProviderClaim = principal.FindFirst("auth_provider")?.Value;
         var oid = principal.FindFirst("oid")?.Value; // Entra Object ID
-        var authProvider = !string.IsNullOrEmpty(oid) ? "Microsoft Entra ID" : "Local (Identity)";
+        var tid = principal.FindFirst("tid")?.Value; // Entra Tenant ID
 
-        var result = $"\nUser: {principal.Identity?.Name ?? "(no name)"}\nType: {principal.Identity?.AuthenticationType}\nProvider: {authProvider}";
+        var provider = authProviderClaim switch
+        {
+            "entra" => "Microsoft Entra ID",
+            "local" => "Local (Identity)",
+            _ => !string.IsNullOrEmpty(oid) ? "Microsoft Entra ID" : "Local (Identity)"
+        };
+
+        var entraUserPolicySatisfied = !string.IsNullOrEmpty(oid) && !string.IsNullOrEmpty(tid);
+
+        var result = $"\nUser: {principal.Identity?.Name ?? "(no name)"}" +
+                     $"\nType: {principal.Identity?.AuthenticationType}" +
+                     $"\nProvider: {provider}" +
+                     $"\nProviderClaim(auth_provider): {authProviderClaim ?? "(missing)"}" +
+                     $"\nPolicy entra.user satisfied: {entraUserPolicySatisfied}";
 
         if (!string.IsNullOrEmpty(oid))
         {
             // Show key Entra claims
             var entraClaims = new[]
             {
-                ("oid", principal.FindFirst("oid")?.Value),
-                ("tid", principal.FindFirst("tid")?.Value), // Tenant ID
-                ("preferred_username", principal.FindFirst("preferred_username")?.Value),
-                ("name", principal.FindFirst("name")?.Value)
+                (Name: "oid", Value: principal.FindFirst("oid")?.Value),
+                (Name: "tid", Value: principal.FindFirst("tid")?.Value), // Tenant ID
+                (Name: "uid", Value: principal.FindFirst("uid")?.Value),
+                (Name: "utid", Value: principal.FindFirst("utid")?.Value),
+                (Name: "msal_account_id", Value: principal.FindFirst("msal_account_id")?.Value ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/msal_account_id")?.Value),
+                (Name: "login_hint", Value: principal.FindFirst("login_hint")?.Value),
+                (Name: "preferred_username", Value: principal.FindFirst("preferred_username")?.Value),
+                (Name: "name", Value: principal.FindFirst("name")?.Value)
             }
             .Where(c => !string.IsNullOrEmpty(c.Value))
-            .Select(c => $"{c.Item1} = {c.Value}");
+            .Select(c => $"{c.Name} = {c.Value}");
 
             if (entraClaims.Any())
             {
