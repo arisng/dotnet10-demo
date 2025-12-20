@@ -1,3 +1,5 @@
+using Demo4.EntraIntegration.Shared.Models;
+
 namespace Demo4.EntraIntegration.Services;
 
 /// <summary>
@@ -14,16 +16,4 @@ public interface IGraphService
     /// Get user profile photo from Microsoft Graph API (/me/photo/$value endpoint)
     /// </summary>
     Task<byte[]?> GetUserPhotoAsync();
-}
-
-/// <summary>
-/// User profile data from Microsoft Graph API
-/// </summary>
-public class UserProfile
-{
-    public string? Id { get; set; }
-    public string? DisplayName { get; set; }
-    public string? JobTitle { get; set; }
-    public string? Mail { get; set; }
-    public string? UserPrincipalName { get; set; }
 }

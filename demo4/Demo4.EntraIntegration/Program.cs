@@ -252,6 +252,27 @@ reportsApi.MapGet("/export", async (IReportService service) =>
 })
 .RequirePermission("reports.export");
 
+// Graph API endpoints
+var graphApi = app.MapGroup("/api/graph");
+
+graphApi.MapGet("/profile", async (IGraphService graphService) =>
+{
+    var profile = await graphService.GetUserProfileAsync();
+    return profile != null ? Results.Ok(profile) : Results.NotFound();
+})
+.RequireAuthorization(); // Any authenticated user can access their own profile
+
+graphApi.MapGet("/profile/photo", async (IGraphService graphService) =>
+{
+    var photoBytes = await graphService.GetUserPhotoAsync();
+    if (photoBytes == null)
+    {
+        return Results.NotFound();
+    }
+    return Results.File(photoBytes, "image/jpeg");
+})
+.RequireAuthorization(); // Any authenticated user can access their own photo
+
 await DbSeeder.SeedDataAsync(app.Services);
 
 app.Run();

@@ -1,4 +1,5 @@
 using Microsoft.Identity.Abstractions;
+using Demo4.EntraIntegration.Shared.Models;
 
 namespace Demo4.EntraIntegration.Services;
 
