@@ -19,17 +19,20 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<EntraUserProvisioningService> _logger;
     private readonly IServiceProvider _serviceProvider;
 
     public EntraUserProvisioningService(
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
+        ApplicationDbContext context,
         ILogger<EntraUserProvisioningService> logger,
         IServiceProvider serviceProvider)
     {
         _userManager = userManager;
         _roleManager = roleManager;
+        _context = context;
         _logger = logger;
         _serviceProvider = serviceProvider;
     }
@@ -180,41 +183,71 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
             return;
         }
 
-        _logger.LogInformation("Syncing {Count} Entra roles for user {Email}", entraRoles.Count, user.Email);
+        _logger.LogInformation("Syncing {Count} Entra roles for user {Email}: {Roles}", 
+            entraRoles.Count, user.Email, string.Join(", ", entraRoles));
 
-        foreach (var roleName in entraRoles)
+        foreach (var entraRole in entraRoles)
         {
-            // Security check: skip sensitive roles that shouldn't be auto-created
-            if (IsSensitiveRole(roleName))
-            {
-                _logger.LogWarning("Skipping sensitive role '{Role}' for user {Email}", roleName, user.Email);
-                continue;
-            }
+            // Look up role mapping from database
+            var mapping = await _context.RoleMappingConfigurations
+                .FirstOrDefaultAsync(rmc => rmc.EntraAppRoleValue == entraRole, cancellationToken);
 
-            // Ensure role exists
-            if (!await _roleManager.RoleExistsAsync(roleName))
+            string localRoleName;
+            if (mapping != null)
             {
-                var createRoleResult = await _roleManager.CreateAsync(new ApplicationRole(roleName));
-                if (!createRoleResult.Succeeded)
-                {
-                    _logger.LogError("Failed to create role '{Role}': {Errors}",
-                        roleName, string.Join(", ", createRoleResult.Errors.Select(e => e.Description)));
-                    continue;
-                }
-
-                _logger.LogInformation("Created new role: {Role}", roleName);
-            }
-
-            // Add user to role
-            var addRoleResult = await _userManager.AddToRoleAsync(user, roleName);
-            if (!addRoleResult.Succeeded)
-            {
-                _logger.LogError("Failed to add user {Email} to role '{Role}': {Errors}",
-                    user.Email, roleName, string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
+                localRoleName = mapping.LocalRoleName;
+                _logger.LogDebug("Mapped Entra role '{EntraRole}' to local role '{LocalRole}' for user {Email}", 
+                    entraRole, localRoleName, user.Email);
             }
             else
             {
-                _logger.LogInformation("Added user {Email} to role: {Role}", user.Email, roleName);
+                // No mapping found - log warning and skip
+                _logger.LogWarning("No role mapping found for Entra role '{EntraRole}' for user {Email}. Skipping role assignment.", 
+                    entraRole, user.Email);
+                continue;
+            }
+
+            // Security check: skip sensitive roles that shouldn't be auto-assigned
+            if (IsSensitiveRole(localRoleName))
+            {
+                _logger.LogWarning("Skipping sensitive local role '{LocalRole}' (mapped from '{EntraRole}') for user {Email}", 
+                    localRoleName, entraRole, user.Email);
+                continue;
+            }
+
+            // Ensure local role exists
+            if (!await _roleManager.RoleExistsAsync(localRoleName))
+            {
+                var createRoleResult = await _roleManager.CreateAsync(new ApplicationRole(localRoleName));
+                if (!createRoleResult.Succeeded)
+                {
+                    _logger.LogError("Failed to create local role '{LocalRole}' (mapped from '{EntraRole}'): {Errors}",
+                        localRoleName, entraRole, string.Join(", ", createRoleResult.Errors.Select(e => e.Description)));
+                    continue;
+                }
+
+                _logger.LogInformation("Created new local role: {LocalRole} (mapped from Entra role '{EntraRole}')", 
+                    localRoleName, entraRole);
+            }
+
+            // Add user to local role
+            if (!await _userManager.IsInRoleAsync(user, localRoleName))
+            {
+                var addRoleResult = await _userManager.AddToRoleAsync(user, localRoleName);
+                if (!addRoleResult.Succeeded)
+                {
+                    _logger.LogError("Failed to add user {Email} to local role '{LocalRole}' (mapped from '{EntraRole}'): {Errors}",
+                        user.Email, localRoleName, entraRole, string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
+                }
+                else
+                {
+                    _logger.LogInformation("Added user {Email} to local role: {LocalRole} (mapped from Entra role '{EntraRole}')", 
+                        user.Email, localRoleName, entraRole);
+                }
+            }
+            else
+            {
+                _logger.LogDebug("User {Email} already has local role: {LocalRole}", user.Email, localRoleName);
             }
         }
     }

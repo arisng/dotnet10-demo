@@ -58,7 +58,30 @@ public static class DbSeeder
         }
         await context.SaveChangesAsync();
 
-        // 4. Seed Users
+        // 4. Seed RoleMappingConfigurations
+        var roleMappings = new[]
+        {
+            (EntraRole: "GlobalAdmin", LocalRole: "Admin", Notes: "Maps Entra Global Admin to local Admin role"),
+            (EntraRole: "ContentManager", LocalRole: "Manager", Notes: "Maps Entra Content Manager to local Manager role"),
+            (EntraRole: "User", LocalRole: "User", Notes: "Maps Entra User to local User role")
+        };
+
+        foreach (var (entraRole, localRole, notes) in roleMappings)
+        {
+            if (!await context.RoleMappingConfigurations.AnyAsync(rmc => rmc.EntraAppRoleValue == entraRole))
+            {
+                context.RoleMappingConfigurations.Add(new RoleMappingConfiguration
+                {
+                    EntraAppRoleValue = entraRole,
+                    LocalRoleName = localRole,
+                    CreatedAt = DateTime.UtcNow,
+                    Notes = notes
+                });
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // 5. Seed Users
         var users = new[]
         {
             (Email: "admin@local.app", Pwd: "Admin123!", Role: "Admin"),
