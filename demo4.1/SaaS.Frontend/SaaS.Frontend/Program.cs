@@ -49,7 +49,7 @@ builder.Services.AddHttpClient(
     (sp, httpClient) =>
     {
         var config = sp.GetRequiredService<IConfiguration>();
-        var baseUrl = config["DownstreamApis:MicrosoftGraph:BaseUrl"] ?? "https+http://weatherapi";
+        var baseUrl = config["DownstreamApis:MicrosoftGraph:BaseUrl"] ?? "https://graph.microsoft.com/v1.0";
         httpClient.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
     });
 
@@ -65,8 +65,12 @@ builder.Services.AddReverseProxy()
         {
             var tokenAcquisition = transformContext.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
 
-            var scopesValue = builder.Configuration["DownstreamApis:WeatherApi:Scopes"];
-            var scopes = scopesValue?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+            var scopes = builder.Configuration.GetSection("DownstreamApis:WeatherApi:Scopes").Get<string[]>();
+            if (scopes is null || scopes.Length == 0)
+            {
+                var scopesValue = builder.Configuration["DownstreamApis:WeatherApi:Scopes"];
+                scopes = scopesValue?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+            }
 
             var token = await tokenAcquisition.GetAccessTokenForUserAsync(scopes);
 
@@ -114,6 +118,10 @@ graphApi.MapGet(
         {
             cca.HandleException(ex);
             return Results.Empty;
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
         }
     });
 

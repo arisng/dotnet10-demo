@@ -1,7 +1,9 @@
+using Demo4.EntraIntegration.Client.Services;
+using Demo4.EntraIntegration.Shared.Models;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Abstractions;
 using Microsoft.Identity.Web;
-using Demo4.EntraIntegration.Shared.Models;
-using Demo4.EntraIntegration.Client.Services;
+using System.Configuration;
 using System.Security.Claims;
 
 namespace Demo4.EntraIntegration.Services;
@@ -14,15 +16,17 @@ public class GraphService : IGraphService
 {
     private readonly IDownstreamApi _downstreamApi;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<GraphService> _logger;
 
     private const string EntraAuthenticationScheme = "MicrosoftEntra";
 
-    public GraphService(IDownstreamApi downstreamApi, IHttpContextAccessor httpContextAccessor, ILogger<GraphService> logger)
+    public GraphService(IDownstreamApi downstreamApi, IHttpContextAccessor httpContextAccessor, ILogger<GraphService> logger, IConfiguration configuration)
     {
         _downstreamApi = downstreamApi;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task<UserProfile?> GetUserProfileAsync()
@@ -30,7 +34,6 @@ public class GraphService : IGraphService
         try
         {
             var user = _httpContextAccessor.HttpContext?.User;
-
             if (user?.Identity?.IsAuthenticated != true)
             {
                 _logger.LogWarning("Graph profile requested but no authenticated user principal is available");
@@ -48,12 +51,20 @@ public class GraphService : IGraphService
                 user.FindFirst(ClaimConstants.PreferredUserName)?.Value,
                 user.GetLoginHint());
 
+            var scopes = _configuration.GetSection("DownstreamApis:MicrosoftGraph:Scopes").Get<string[]>();
+            if (scopes is null || scopes.Length == 0)
+            {
+                var scopesValue = _configuration["DownstreamApis:MicrosoftGraph:Scopes"];
+                scopes = scopesValue?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+            }
+
             var result = await _downstreamApi.GetForUserAsync<UserProfile>(
                 "DownstreamApi",
                 options =>
                 {
-                    options.RelativePath = "me";
-                    options.AcquireTokenOptions.AuthenticationOptionsName = EntraAuthenticationScheme;
+                    options.RelativePath = "/me";
+                    options.Scopes = scopes;
+                    options.AcquireTokenOptions.AuthenticationOptionsName = OpenIdConnectDefaults.AuthenticationScheme; ;
                 },
                 user: user);
 

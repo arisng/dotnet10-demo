@@ -75,7 +75,7 @@ API permissions:
 - App registration -> API permissions -> Add a permission
 - My APIs -> select `SaaS.BackendApi` -> Delegated permissions -> select `Weather.Get`
 - Add permissions
-- Add a permission -> Microsoft Graph -> Delegated permissions -> select `User.ReadBasic.All` (or your preferred profile permission)
+- Add a permission -> Microsoft Graph -> Delegated permissions -> select `User.Read` (recommended for `/me`)
 - Grant admin consent (recommended)
 
 Record:
@@ -99,9 +99,11 @@ dotnet user-secrets set "AzureAd:TenantId" "<Frontend_TenantId>"
 dotnet user-secrets set "AzureAd:ClientId" "<Frontend_ClientId>"
 dotnet user-secrets set "AzureAd:ClientSecret" "<Frontend_ClientSecret>"
 dotnet user-secrets set "AzureAd:Domain" "<Frontend_Domain>"
-dotnet user-secrets set "DownstreamApis:WeatherApi:Scopes" "api://<Backend_ClientId>/Weather.Get"
-dotnet user-secrets set "DownstreamApis:MicrosoftGraph:Scopes" "User.ReadBasic.All"
+dotnet user-secrets set "DownstreamApis:WeatherApi:Scopes:0" "api://<Backend_ClientId>/Weather.Get"
+dotnet user-secrets set "DownstreamApis:MicrosoftGraph:Scopes:0" "User.Read"
 ```
+
+Note: `Microsoft.Identity.Web` downstream API configuration expects `Scopes` to be a collection (array). For user-secrets, set array entries using `:0`, `:1`, ...
 
 ## Run
 
