@@ -1,17 +1,13 @@
 using System.Security.Authentication;
 using System.Security.Claims;
-using Demo5_1.ApiService.Authorization;
 using Demo5_1.Shared.Models;
-using Demo5_1.ApiService.Client.Services;
 using Demo5_1.ApiService.Data;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Demo5_1.ApiService.Services;
 
-public class ServerWeatherService : IWeatherService
+public class ServerWeatherService
 {
     public Task<WeatherForecast[]> GetForecastAsync()
     {
@@ -29,7 +25,7 @@ public class ServerWeatherService : IWeatherService
     }
 }
 
-public class ServerUserService(UserManager<ApplicationUser> userManager) : IUserService
+public class ServerUserService(UserManager<ApplicationUser> userManager)
 {
     public async Task<List<UserDto>> GetUsersAsync()
     {
@@ -65,7 +61,7 @@ public class ServerUserService(UserManager<ApplicationUser> userManager) : IUser
     }
 }
 
-public class ServerReportService : IReportService
+public class ServerReportService
 {
     public Task<List<ReportDto>> GetReportsAsync()
     {
