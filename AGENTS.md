@@ -128,7 +128,7 @@ Output:
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
-4. **Activate Claude Skill** `git-committer` to create atomic commits with proper messages
+4. **Activate Claude Skill** `git-atomic-committer` to create atomic commits with proper messages
 5. **Ask for human review** (MANDATORY) - Get a human to review changes before pushing
 6. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash

@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="SaaS.AppHost/SaaS.AppHost.csproj" />
+  <Project Path="SaaS.ServiceDefaults/SaaS.ServiceDefaults.csproj" />
+  <Project Path="SaaS.Backend/SaaS.Backend.csproj" />
+  <Project Path="SaaS.Frontend/SaaS.Frontend/SaaS.Frontend.csproj" />
+  <Project Path="SaaS.Frontend/SaaS.Frontend.Client/SaaS.Frontend.Client.csproj" />
+  <Project Path="SaaS.Shared/SaaS.Shared.csproj" />
+</Solution>
