@@ -8,6 +8,7 @@ using Demo5_1.Web.Client.Services;
 using Microsoft.Identity.Abstractions;
 using Demo5_1.Web.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,10 +25,7 @@ builder.Services.AddAuthentication(options =>
     })
     .AddCookie("Cookies")
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"), openIdConnectScheme: "MicrosoftEntra")
-    .EnableTokenAcquisitionToCallDownstreamApi(confidentialClientApplicationOptions: options => 
-    {
-         // Optional: Configure client secret logic if needed explicitly
-    })
+    .EnableTokenAcquisitionToCallDownstreamApi()
     .AddDownstreamApi("ApiService", options => 
     {
         options.BaseUrl = "http://apiservice";
@@ -54,11 +52,12 @@ builder.Services.AddReverseProxy()
         // Add Token to Proxy Requests
         builderContext.AddRequestTransform(async transformContext =>
         {
-            var tokenAcquisition = transformContext.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
+            var services = transformContext.HttpContext.RequestServices;
+            var tokenAcquisition = services.GetRequiredService<ITokenAcquisition>();
             try
             {
-                var scopes = builderContext.ApplicationServices.GetRequiredService<IConfiguration>()
-                    .GetSection("ApiService:Scopes").Get<string[]>();
+                var configuration = services.GetRequiredService<IConfiguration>();
+                var scopes = configuration.GetSection("ApiService:Scopes").Get<string[]>();
                 var token = await tokenAcquisition.GetAccessTokenForUserAsync(scopes);
                 transformContext.ProxyRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
@@ -103,7 +102,7 @@ else
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-app.UseStaticAssets();
+app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.UseAuthentication();
