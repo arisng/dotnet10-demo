@@ -23,6 +23,7 @@ builder.Services.AddAuthentication(options =>
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
 builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Api.Access", policy => policy.AddRequirements(new ScopeRequirement("access_as_user")))
     .AddPolicy("weather.read", policy => policy.AddRequirements(new PermissionRequirement("weather.read")))
     .AddPolicy("users.read", policy => policy.AddRequirements(new PermissionRequirement("users.read")))
     .AddPolicy("users.write", policy => policy.AddRequirements(new PermissionRequirement("users.write")))
@@ -31,6 +32,7 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("reports.export", policy => policy.AddRequirements(new PermissionRequirement("reports.export")));
 
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, ScopeAuthorizationHandler>();
 builder.Services.AddScoped<IClaimsTransformation, PermissionClaimsTransformation>();
 
 // Add Database
@@ -51,6 +53,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddDefaultTokenProviders();
 
 // Add Application Services
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<ServerUserService>();
 builder.Services.AddScoped<ServerReportService>();
@@ -77,7 +81,7 @@ app.UseAuthorization();
 // Weather Endpoints
 var weatherApi = app.MapGroup("/api/weather");
 weatherApi.MapGet("/", async (ServerWeatherService service) => await service.GetForecastAsync())
-    .RequireAuthorization("weather.read");
+    .RequireApiPermission("weather.read");
 
 // User Management Endpoints
 var usersApi = app.MapGroup("/api/users");
@@ -94,10 +98,10 @@ usersApi.MapGet("/permissions", async (HttpContext context, IPermissionService s
     var permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
     return Results.Ok(permissions);
 })
-.RequireAuthorization();
+.RequireAuthorization("Api.Access");
 
 usersApi.MapGet("/", async (ServerUserService service) => await service.GetUsersAsync())
-    .RequireAuthorization("users.read");
+    .RequireApiPermission("users.read");
 
 usersApi.MapPost("/", async (CreateUserDto input, ServerUserService service) =>
 {
@@ -111,7 +115,7 @@ usersApi.MapPost("/", async (CreateUserDto input, ServerUserService service) =>
         return Results.BadRequest(ex.Message);
     }
 })
-.RequireAuthorization("users.write");
+.RequireApiPermission("users.write");
 
 usersApi.MapDelete("/{id}", async (string id, ServerUserService service) =>
 {
@@ -129,20 +133,20 @@ usersApi.MapDelete("/{id}", async (string id, ServerUserService service) =>
         return Results.BadRequest(ex.Message);
     }
 })
-.RequireAuthorization("users.delete");
+.RequireApiPermission("users.delete");
 
 // Reports Endpoints
 var reportsApi = app.MapGroup("/api/reports");
 
 reportsApi.MapGet("/", async (ServerReportService service) => await service.GetReportsAsync())
-    .RequireAuthorization("reports.view");
+    .RequireApiPermission("reports.view");
 
 reportsApi.MapGet("/export", async (ServerReportService service) =>
 {
     var fileBytes = await service.ExportReportsAsync();
     return Results.File(fileBytes, "text/plain", "report.txt");
 })
-.RequireAuthorization("reports.export");
+.RequireApiPermission("reports.export");
 
 
 // Identity Provisioning Endpoint (Called by BFF on login)
@@ -176,7 +180,7 @@ app.MapPost("/api/identity/provision", async (HttpContext context, ApplicationDb
     
     return Results.Ok();
 })
-.RequireAuthorization(); // Requires valid Bearer token
+.RequireAuthorization("Api.Access"); // Requires access_as_user scope
 
 await DbSeeder.SeedDataAsync(app.Services);
 
