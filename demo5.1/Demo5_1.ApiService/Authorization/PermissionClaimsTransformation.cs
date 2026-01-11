@@ -12,15 +12,18 @@ public class PermissionClaimsTransformation : IClaimsTransformation
 {
     private readonly IPermissionService _permissionService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ITenantProvider _tenantProvider;
     private readonly ILogger<PermissionClaimsTransformation> _logger;
 
     public PermissionClaimsTransformation(
         IPermissionService permissionService,
         UserManager<ApplicationUser> userManager,
+        ITenantProvider tenantProvider,
         ILogger<PermissionClaimsTransformation> logger)
     {
         _permissionService = permissionService;
         _userManager = userManager;
+        _tenantProvider = tenantProvider;
         _logger = logger;
     }
 
@@ -35,6 +38,13 @@ public class PermissionClaimsTransformation : IClaimsTransformation
 
         var clone = principal.Clone();
         var identity = (ClaimsIdentity)clone.Identity!;
+
+        // Add Simulated Tenant Claim
+        var tenantId = _tenantProvider.GetTenantId();
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            identity.AddClaim(new Claim("tenant", tenantId));
+        }
 
         ApplicationUser? user = null;
         string? userId = null;
