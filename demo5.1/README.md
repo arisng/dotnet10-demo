@@ -64,12 +64,12 @@ This demo intentionally uses *both* Microsoft Entra ID and local Identity/RBAC. 
 
 Treat authorization as two independent checks:
 
-1. **Outer lock (platform/API boundary):** validate the access token *and* require a scope (or app-role) appropriate to the endpoint.
+1. **Outer lock (platform/API boundary):** validate the access token *and* require a coarse scope (e.g., `access_as_user`) appropriate to the endpoint. The `ApiService` enforces this via a global policy checking the `scp` claim.
 2. **Inner lock (business/domain):** require a local permission (RBAC) appropriate to the action.
 
 Example intent:
 
-- `GET /api/weather` requires scope `Forecast.Read` **and** local permission `weather.read`.
+- `GET /api/weather` requires scope `access_as_user` **and** local permission `weather.read`.
 
 This is defense-in-depth: if a local permission check is accidentally missed on one endpoint, a scope gate can still block entire classes of calls.
 
@@ -97,7 +97,7 @@ What this gives you:
 ##### Request flow (Entra sign-in)
 
 1. User signs in to `Web` via Entra (cookie session).
-2. `Web` acquires an Entra access token for `ApiService` (delegated/OBO) using configured scopes (example: `Forecast.Read`).
+2. `Web` acquires an Entra access token for `ApiService` (delegated/OBO) using configured scopes (example: `access_as_user`).
 3. YARP forwards `/api/*` requests to `ApiService` and attaches the access token.
 4. `ApiService` validates the token and checks scope(s) (outer lock), then evaluates local RBAC permission(s) (inner lock).
 
@@ -174,7 +174,7 @@ No more running multiple terminal windows. `Demo5_1.AppHost` runs everything. Se
 1.  **Entra ID Configuration** (Same as Demo 5):
     - Client App (BFF)
     - Protected API (Backend)
-    - Scope: `Forecast.Read` (mapped in `appsettings.json`)
+    - Scope: `access_as_user` (mapped in `appsettings.json`)
 
 2.  **Tools**:
     - .NET 10 SDK
@@ -192,7 +192,7 @@ You must copy your Entra ID settings from `demo5/Demo5.DownstreamApi/appsettings
   "TenantId": "..."
 },
 "ApiService": {
-  "Scopes": [ "api://<your-api-client-id>/Forecast.Read" ]
+  "Scopes": [ "api://<your-api-client-id>/access_as_user" ]
 }
 ```
 
@@ -210,6 +210,12 @@ You must copy your Entra ID settings from `demo5/Demo5.DownstreamApi/appsettings
 2.  **Startup Project:** Set `Demo5_1.AppHost` as the startup project.
 3.  **Run:** Press F5.
 4.  **Aspire Dashboard:** A dashboard will open. Click the endpoint for `webfrontend` (`https://localhost:...`) to launch the app.
+
+## Tenant Simulation
+This demo implements a **pragmatic tenant simulation**. The `ApiService` resolves the current `tenantId` using `ITenantProvider`:
+1.  **Header Check**: Looks for `X-Tenant-Id` header (simulated for external/partner tests).
+2.  **Claim Fallback**: Eventually resolves from token claims.
+3.  **Default**: Falls back to `demo-tenant-1` for the workshop environment.
 
 ## Migration Guide (From Demo 5)
 
