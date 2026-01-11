@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Demo5_1.ServiceDefaults\Demo5_1.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Demo5_1.Shared\Demo5_1.Shared.csproj" />
   </ItemGroup>
 
 </Project>
