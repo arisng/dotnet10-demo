@@ -33,15 +33,16 @@ dotnet watch
 
 ## Demo Lineup
 
-| Demo  | Status     | Focus                                          | Depends On | Highlights                                                               |
-| ----- | ---------- | ---------------------------------------------  | ---------- | ------------------------------------------------------------------------ |
-| demo1 | Completed  | Identity scaffolding baseline                  | —          | CLI scaffolding, cookie auth foundation                                  |
-| demo2 | Completed  | Dual-mode diagnostics + Passkeys               | demo1      | Auth state probe, full passkey implementation, WASM caching              |
-| demo3 | Completed  | BFF APIs + Permission-Based RBAC               | demo2      | Fine-grained permissions, role→permission mapping, claims transformation |
-| demo4 | Completed  | Microsoft Entra ID + Claims Mapping            | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth |
-| demo5 | Completed  | Custom Downstream APIs (Microservices)         | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison   |
-| demo6 | Planned    | From BFF to Modular Monolith                   | demo5      | Vertical slicing, legacy integration, three integration patterns (local, legacy, modern) |
-| demo7 | Planned    | Production hardening + Entra ID claims mapping | demo6      | Secrets, logging, monitoring, Entra App Roles → permissions, HTTPS enforcement |
+| Demo    | Status    | Focus                                           | Depends On | Highlights                                                                                 |
+| ------- | --------- | ----------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
+| demo1   | Completed | Identity scaffolding baseline                   | —          | CLI scaffolding, cookie auth foundation                                                    |
+| demo2   | Completed | Dual-mode diagnostics + Passkeys                | demo1      | Auth state probe, full passkey implementation, WASM caching                                |
+| demo3   | Completed | BFF APIs + Permission-Based RBAC                | demo2      | Fine-grained permissions, role→permission mapping, claims transformation                   |
+| demo4   | Completed | Microsoft Entra ID + Claims Mapping             | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth |
+| demo5   | Completed | Custom Downstream APIs (Microservices)          | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison                     |
+| demo5.1 | Completed | Distributed Modular Monolith with Aspire & YARP | demo5      | .NET Aspire orchestration, YARP Proxy, "Two Locks" security model                          |
+| demo6   | Planned   | The Multi-Tenant SaaS Monolith (SaaS)         | demo5.1    | Finbuckle, Multi-Identity per Tenant, Shared/Dedicated DB Choice          |
+| demo7   | Planned   | Feature Flag Management & Hardening           | demo6      | Subscription-based Flags, Azure AppConfig, Operational Hardening          |
 
 ## Demo Details
 
@@ -146,42 +147,47 @@ dotnet watch
 - **Architecture:** Still monolithic, introduce `IDownstreamApi` abstraction for external service communication
 - **Outcome:** A solution containing both monolithic (BFF) and microservice (Downstream) patterns, clearly demonstrating when and how to use each security model. Understanding that claims transformation happens centrally (demo4) and flows through all downstream consumers.
 
+### demo5.1 – Distributed Modular Monolith with Aspire & YARP
 
-### demo6 – From BFF to Modular Monolith with Legacy Integration
-
-- **Goal:** Evolve the BFF pattern from demo5 into a modular monolithic architecture by organizing multiple domains as vertical slices. Demonstrate how to integrate three different sources (local database, legacy API, modern API) within a single deployment unit.
+- **Goal:** Evolve the "Downstream API" pattern into a production-grade Distributed Modular Monolith architecture using .NET Aspire and YARP.
 - **What's new:**
-  - **Modular Monolithic Structure:** Three independent vertical slices (Users, Orders, Graph), each owning data → service → API → UI
-  - **Three Integration Patterns:**
-    - Users: Local SQL database (greenfield)
-    - Orders: Legacy HTTP API with adapter pattern (demo-specific focus)
-    - Graph: Microsoft Graph API with OBO flow (carries over from demo5)
-  - **Module Organization:** Extension methods for clean DI registration (`AddUsersModule()`, `AddOrdersModule()`, `AddGraphModule()`)
-  - **Legacy Integration:** Adapter pattern isolates legacy API quirks from domain model; simple DTO mapping at service boundary
-  - **Vertical Slicing Principles:** Each module is extraction-ready for future microservices migration
-  - **Simulated Legacy Service:** `Simulated.LegacyOrderService` on port 7230 to mimic real legacy system quirks
-  - **Three Data Access Patterns:** EF Core (local), HttpClient with adapter (legacy), IDownstreamApi (modern)
-- **Architecture:** Monolithic Blazor Web App with internal modular structure (prepares for future decomposition)
-- **Outcome:** Senior developers understand how to organize growing monoliths with clear module boundaries while handling diverse integration patterns. Legacy integration patterns demonstrate real-world enterprise challenges.
+  - **.NET Aspire Orchestration:** Centralized management of service discovery, environment variables, and local cloud-native topology.
+  - **YARP (Yet Another Reverse Proxy):** Implemented in the Frontend (BFF) to forward `/api/*` requests, removing the need for business logic or manual HttpClient wrappers in the presentation layer.
+  - **Identity "Shift Left":** The `ApiService` now owns the Identity logic and user data, while the Frontend focuses on authentication and token acquisition.
+  - **"Two Locks" Security Model:** Implementation of defense-in-depth with an outer lock (OAuth scopes/coarse API access) and an inner lock (Local RBAC/fine-grained business permissions).
+  - **Multi-Identity Support:** Unified bearer token boundary accepting both Entra ID tokens and first-party JWTs for local accounts.
+  - **BFF Token Management:** Proxy middleware automatically attaches tokens to forwarded requests.
+- **Architecture:** Distributed Modular Monolith orchestrated by .NET Aspire (Web, ApiService, ServiceDefaults).
+- **Outcome:** A cloud-native architecture that simplifies the BFF by delegating business routing to YARP and centralizing domain logic in a professional "Modular Monolith" backend.
 
-### demo7 – Production Hardening
 
-- **Goal:** Prepare the modular monolith from demo6 for production deployment with operational best practices and enterprise-grade observability.
+### demo6 – The Multi-Tenant SaaS Monolith (SaaS)
+
+- **Goal:** Transform the Distributed Modular Monolith from demo5.1 into a professional SaaS platform with multi-tenant isolation and per-customer identity configurations.
 - **What's new:**
-  - **Secrets Management:** Azure Key Vault, User Secrets, environment-specific configuration
-  - **Logging & Telemetry:** Serilog structured logging, Application Insights integration, custom metrics
-  - **Security Hardening:** HTTPS/HSTS enforcement, Content Security Policy, rate limiting for API endpoints
-  - **Health Checks:** Database connectivity, Entra ID availability, permission cache health endpoints
-  - **Deployment Guide:** Azure App Service with managed identity, production redirect URIs, zero-downtime database migrations
-  - **Monitoring:** Application Insights dashboards for auth events, API performance, permission enforcement metrics
-- **Outcome:** A production-ready template for enterprise applications with comprehensive observability, secure configuration management, and operational resilience.
+  - **Finbuckle.MultiTenant Integration:** Complete setup for tenant resolution via hostnames and header propagation.
+  - **Identity-as-a-Setting (Multi-Identity):** Dynamically toggle between Entra ID and local (Passkey) only login based on the resolved tenant's configuration.
+  - **Hybrid Data Isolation:** Support both Shared Database (logical isolation via Global Query Filters) and Dedicated Database (physical separation via connection strings).
+  - **Tenant Configuration Store:** Create a SQL-backed store for per-tenant metadata, branding, and identity rules.
+  - **Blazor Circuit Persistence:** Specialized `ITenantProvider` to handle multi-tenancy in stateful `InteractiveServer` connections.
+- **Architecture:** Distributed Modular Monolith orchestrated by .NET Aspire with Finbuckle isolation.
+- **Outcome:** A sophisticated SaaS foundation that adapts its security and data persistence layers based on the customer context.
+
+### demo7 – Feature Flag Management & Hardening
+
+- **Goal:** Implement subscription-based feature management in the SaaS platform and prepare the solution for production with enterprise hardening.
+- **What's new:**
+  - **Feature Flag Management:** Integrate `Microsoft.FeatureManagement` with the Tenant Configuration layer to toggle high-value features (e.g., "Premium Weather Reports") per-tenant.
+  - **Azure App Configuration:** Use Azure AppConfig and Key Vault for centralized, dynamic management of flags and secrets.
+  - **Secrets Management:** Managed Identity integration and production-grade environment-specific configuration.
+  - **Operational Observability:** Serilog structured logging, custom OpenTelemetry metrics, and health check dashboards.
+  - **Security Hardening:** Content Security Policy (CSP), rate limiting, and zero-downtime database migration strategies.
+- **Outcome:** A production-ready SaaS application with powerful business-driven feature toggles and comprehensive operational resilience.
 
 
 ## Next Steps
 
-1. Implement `demo4` – Microsoft Entra ID Integration + Claims Mapping: Add Entra ID provider integration and automatic role mapping from Entra App Roles to local permissions.
-2. Implement `demo5` – Custom Downstream APIs: Create a separate protected API project with Bearer token validation and OBO flow.
-3. Implement `demo6` – From BFF to Modular Monolith with Legacy Integration: Create the modular monolithic structure with three vertical slices (Users, Orders, Graph), focusing on legacy integration patterns with adapters.
-4. Implement `demo7` – Production Hardening: Build on demo6 to add secrets management, logging, telemetry, and security hardening for production deployment.
-5. Validate all demos (demo1-demo5) for completeness and alignment with changelog achievements.
-6. Keep this roadmap updated as new .NET 10 identity features ship.
+1. Implement `demo6` – The Multi-Tenant SaaS Monolith (SaaS): Build the Multi-Identity pipeline and data isolation layers using Finbuckle.
+2. Implement `demo7` – Feature Flag Management & Hardening: Implement subscription-based toggles and production observability.
+3. Validate all demos (demo1-demo5.1) for completeness and alignment with changelog achievements.
+4. Keep this roadmap updated as new .NET 10 identity features ship.
