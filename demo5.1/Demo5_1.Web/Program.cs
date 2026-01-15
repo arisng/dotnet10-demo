@@ -7,8 +7,12 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Demo5_1.Web.Client.Services;
 using Microsoft.Identity.Abstractions;
 using Demo5_1.Web.Services;
+using Demo5_1.Shared.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Yarp.ReverseProxy.Transforms;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,13 +21,13 @@ builder.AddServiceDefaults();
 // Authentication Configuration
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<PersistingServerAuthenticationStateProvider>();
+builder.Services.AddScoped<IApiTokenProvider, HybridApiTokenProvider>();
 
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = "Cookies";
         options.DefaultChallengeScheme = "MicrosoftEntra";
     })
-    .AddCookie("Cookies")
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"), openIdConnectScheme: "MicrosoftEntra")
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddDownstreamApi("ApiService", options => 
@@ -53,13 +57,14 @@ builder.Services.AddReverseProxy()
         builderContext.AddRequestTransform(async transformContext =>
         {
             var services = transformContext.HttpContext.RequestServices;
-            var tokenAcquisition = services.GetRequiredService<ITokenAcquisition>();
+            var tokenProvider = services.GetRequiredService<IApiTokenProvider>();
             try
             {
-                var configuration = services.GetRequiredService<IConfiguration>();
-                var scopes = configuration.GetSection("ApiService:Scopes").Get<string[]>();
-                var token = await tokenAcquisition.GetAccessTokenForUserAsync(scopes);
-                transformContext.ProxyRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var token = await tokenProvider.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    transformContext.ProxyRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
             }
             catch (Exception ex)
             {
@@ -102,13 +107,59 @@ else
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+app.MapStaticAssets();
 app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers(); // For signin-oidc
+
+var accountApi = app.MapGroup("/account");
+
+accountApi.MapPost("/login-handler", async ([FromForm] string Email, [FromForm] string Password, [FromQuery] string? returnUrl, IHttpClientFactory clientFactory, HttpContext httpContext) =>
+{
+    var request = new LoginRequest { Email = Email, Password = Password };
+    var client = clientFactory.CreateClient();
+    client.BaseAddress = new Uri("http://apiservice");
+    
+    var response = await client.PostAsJsonAsync("/api/identity/token", request);
+    if (!response.IsSuccessStatusCode)
+    {
+        return Results.Unauthorized();
+    }
+
+    var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
+    if (tokenResponse == null) return Results.Unauthorized();
+
+    // Create claims principal for the Cookie
+    var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.Name, request.Email),
+        new Claim(ClaimTypes.NameIdentifier, request.Email),
+        new Claim(ClaimTypes.Email, request.Email),
+        new Claim("api_access_token", tokenResponse.AccessToken) // Store for YARP
+    };
+
+    var identity = new ClaimsIdentity(claims, "Cookies");
+    var principal = new ClaimsPrincipal(identity);
+
+    await httpContext.SignInAsync("Cookies", principal);
+
+    // Call Provisioning on API (so the backend knows the user)
+    var provisionClient = clientFactory.CreateClient();
+    provisionClient.BaseAddress = new Uri("http://apiservice");
+    provisionClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
+    await provisionClient.PostAsync("/api/identity/provision", null);
+
+    return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+});
+
+accountApi.MapPost("/logout", async (string? returnUrl, HttpContext httpContext) =>
+{
+    await httpContext.SignOutAsync("Cookies");
+    return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

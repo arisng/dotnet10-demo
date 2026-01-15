@@ -1,0 +1,54 @@
+@page "/Account/Login"
+@using System.Security.Claims
+@inject NavigationManager NavigationManager
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+}
+
+<PageTitle>Login</PageTitle>
+
+<div class="container container-sm" style="max-width: 400px; margin-top: 50px;">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title text-center mb-4">Sign In</h3>
+
+            <!-- Microsoft Entra ID Option -->
+            <div class="d-grid gap-2 mb-4">
+                <a href="@($"/MicrosoftIdentity/Account/SignIn{(string.IsNullOrEmpty(ReturnUrl) ? "" : $"?redirectUri={ReturnUrl}")}")" class="btn btn-primary">
+                    <i class="bi bi-microsoft"></i> Sign in with Microsoft Entra
+                </a>
+            </div>
+
+            <div class="text-center mb-3">
+                <span class="text-muted">or use local account</span>
+            </div>
+
+            <!-- Local Login Form -->
+            <form action="@($"/account/login-handler{(string.IsNullOrEmpty(ReturnUrl) ? "" : $"?returnUrl={ReturnUrl}")}")" method="post">
+                <AntiforgeryToken />
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email address</label>
+                    <input type="email" name="Email" class="form-control" id="email" placeholder="admin@local.app" required />
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" name="Password" class="form-control" id="password" placeholder="Admin123!" required />
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-secondary">Sign In (Local)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="mt-4 p-3 bg-light border rounded">
+        <h5>Demo Credentials:</h5>
+        <ul class="mb-0">
+            <li><strong>Admin:</strong> admin@local.app / Admin123!</li>
+            <li><strong>Manager:</strong> manager@local.app / Manager123!</li>
+            <li><strong>User:</strong> user@local.app / User123!</li>
+        </ul>
+    </div>
+</div>

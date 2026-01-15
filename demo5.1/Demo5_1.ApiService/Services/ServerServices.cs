@@ -9,6 +9,13 @@ namespace Demo5_1.ApiService.Services;
 
 public class ServerWeatherService
 {
+    /// <summary>
+    /// Retrieves a list of weather forecasts.
+    /// </summary>
+    /// <remarks>
+    /// This method generates a random weather forecast for the next 5 days.
+    /// </remarks>
+    /// <returns>An array of WeatherForecast objects.</returns>
     public Task<WeatherForecast[]> GetForecastAsync()
     {
         var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };

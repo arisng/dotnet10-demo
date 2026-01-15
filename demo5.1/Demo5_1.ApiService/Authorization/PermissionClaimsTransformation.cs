@@ -50,7 +50,7 @@ public class PermissionClaimsTransformation : IClaimsTransformation
         string? userId = null;
 
         // Detect authentication source
-        string? oid = principal?.GetObjectId(); // Entra ID Object ID
+        string? oid = principal.GetObjectId(); // Entra ID Object ID
         var isEntraUser = !string.IsNullOrEmpty(oid);
 
         if (isEntraUser && !string.IsNullOrEmpty(oid))
@@ -72,7 +72,7 @@ public class PermissionClaimsTransformation : IClaimsTransformation
         else
         {
             // Local Identity user
-            userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            userId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
             
             if (!string.IsNullOrEmpty(userId))
             {
