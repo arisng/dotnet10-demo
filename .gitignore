@@ -346,3 +346,4 @@ packages/
 *.tmp
 *.temp
 node_modules/*
+**/appsettings.Localhost.json
