@@ -33,16 +33,16 @@ dotnet watch
 
 ## Demo Lineup
 
-| Demo    | Status    | Focus                                           | Depends On | Highlights                                                                                 |
-| ------- | --------- | ----------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
-| demo1   | Completed | Identity scaffolding baseline                   | —          | CLI scaffolding, cookie auth foundation                                                    |
-| demo2   | Completed | Dual-mode diagnostics + Passkeys                | demo1      | Auth state probe, full passkey implementation, WASM caching                                |
-| demo3   | Completed | BFF APIs + Permission-Based RBAC                | demo2      | Fine-grained permissions, role→permission mapping, claims transformation                   |
-| demo4   | Completed | Microsoft Entra ID + Claims Mapping             | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth |
-| demo5   | Completed | Custom Downstream APIs (Microservices)          | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison                     |
-| demo5.1 | Completed | Distributed Modular Monolith with Aspire & YARP | demo5      | .NET Aspire orchestration, YARP Proxy, "Two Locks" security model                          |
-| demo6   | Planned   | The Multi-Tenant SaaS Monolith (SaaS)         | demo5.1    | Finbuckle, Multi-Identity per Tenant, Shared/Dedicated DB Choice          |
-| demo7   | Planned   | Feature Flag Management & Hardening           | demo6      | Subscription-based Flags, Azure AppConfig, Operational Hardening          |
+| Demo    | Status    | Focus                                           | Depends On | Highlights                                                                                              |
+| ------- | --------- | ----------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------- |
+| demo1   | Completed | Identity scaffolding baseline                   | —          | CLI scaffolding, cookie auth foundation                                                                 |
+| demo2   | Completed | Dual-mode diagnostics + Passkeys                | demo1      | Auth state probe, full passkey implementation, WASM caching                                             |
+| demo3   | Completed | BFF APIs + Permission-Based RBAC                | demo2      | Fine-grained permissions, role→permission mapping, claims transformation                                |
+| demo4   | Completed | Microsoft Entra ID + Claims Mapping             | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth              |
+| demo5   | Completed | Custom Downstream APIs (Microservices)          | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison                                  |
+| demo5.1 | Completed | Distributed Modular Monolith with Aspire & YARP | demo5      | .NET Aspire orchestration, YARP Proxy, "Two Locks" security model, .NET 10 Built-in OpenAPI + Scalar UI |
+| demo6   | Planned   | The Multi-Tenant SaaS Monolith (SaaS)           | demo5.1    | Finbuckle, Multi-Identity per Tenant, Shared/Dedicated DB Choice                                        |
+| demo7   | Planned   | Feature Flag Management & Hardening             | demo6      | Subscription-based Flags, Azure AppConfig, Operational Hardening                                        |
 
 ## Demo Details
 
@@ -157,8 +157,9 @@ dotnet watch
   - **"Two Locks" Security Model:** Implementation of defense-in-depth with an outer lock (OAuth scopes/coarse API access) and an inner lock (Local RBAC/fine-grained business permissions).
   - **Multi-Identity Support:** Unified bearer token boundary accepting both Entra ID tokens and first-party JWTs for local accounts.
   - **BFF Token Management:** Proxy middleware automatically attaches tokens to forwarded requests.
+  - **Modern .NET 10 OpenAPI:** Integration of built-in `Microsoft.AspNetCore.OpenApi` with source-generated metadata and the **Scalar** interactive API UI.
 - **Architecture:** Distributed Modular Monolith orchestrated by .NET Aspire (Web, ApiService, ServiceDefaults).
-- **Outcome:** A cloud-native architecture that simplifies the BFF by delegating business routing to YARP and centralizing domain logic in a professional "Modular Monolith" backend.
+- **Outcome:** A cloud-native architecture that simplifies the BFF by delegating business routing to YARP and centralizing domain logic in a professional "Modular Monolith" backend. Use the modern Scalar UI to test secure endpoints directly.
 
 
 ### demo6 – The Multi-Tenant SaaS Monolith (SaaS)
