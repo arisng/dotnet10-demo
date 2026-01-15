@@ -9,23 +9,16 @@ This demo demonstrates how the application dynamically adapts its identity and d
 
 ```mermaid
 graph TD
-    subgraph "Tenant Resolution"
-        Host1["tenant1.localhost (Consumer)"] -->|"Finbuckle"| Web
-        Host2["tenant2.localhost (Enterprise)"] -->|"Finbuckle"| Web
-        Host3["tenant3.localhost (Hybrid)"] -->|"Finbuckle"| Web
-    end
+    User[Browser] -->|"Cookie Auth"| Web["Frontend (Blazor + YARP)"]
+    Web -->|"Aspire Discovery"| Api["ApiService (Modular Monolith)"]
+    Api -->|"Local Provider"| DB[(SQL Database)]
+    Api -->|"Adapter Pattern"| Legacy["Legacy Order API"]
+    Api -->|"OBO Flow"| Graph["Microsoft Graph"]
 
-    subgraph "Web (Multi-Identity UI)"
-        Web -->|"Settings: LocalOnly"| UI1["Passkey-Only Login"]
-        Web -->|"Settings: EntraOnly"| UI2["Entra-Only Login"]
-        Web -->|"Settings: All"| UI3["Show Both (Passkey + Entra)"]
-    end
-    
-    Web -->|"X-Tenant-Id + Bearer"| Api["ApiService (Shared DB)"]
-    
-    subgraph "ApiService (Isolation)"
-        Api -->|"DB Filter"| DB[(Application DB)]
-        Api -->|"Config Store"| Settings[(Tenant Settings)]
+    subgraph "Demo6.ApiService (Vertical Slices)"
+        UsersModule[Users Module]
+        OrdersModule[Orders Module]
+        GraphModule[Graph Module]
     end
 ```
 
