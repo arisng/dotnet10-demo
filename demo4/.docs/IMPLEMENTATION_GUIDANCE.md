@@ -528,7 +528,7 @@ public partial class AddEntraIntegrationFields : Migration
 
 ---
 
-## Updated appsettings.Development.json
+## Updated appsettings.json
 
 **Complete configuration with all research findings**:
 

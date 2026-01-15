@@ -72,18 +72,22 @@ After registration, copy these values from the **Overview** page:
 
 ## Step 2: Configure Application Settings
 
-### 2.1 Update appsettings.Development.json
+### 2.1 Update appsettings.json
 
-Open `demo4/Demo4.EntraIntegration/appsettings.Development.json` and update with your values:
+Open `demo4/Demo4.EntraIntegration/appsettings.json` and add the Azure AD configuration section:
 
 ```json
 {
+  "ConnectionStrings": {
+    "DefaultConnection": "DataSource=Data/app.db;Cache=Shared"
+  },
   "Logging": {
     "LogLevel": {
-      "Default": "Information",
+      "Default": "Debug",
       "Microsoft.AspNetCore": "Warning"
     }
   },
+  "AllowedHosts": "*",
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
     "Domain": "your-tenant.onmicrosoft.com",
@@ -95,10 +99,12 @@ Open `demo4/Demo4.EntraIntegration/appsettings.Development.json` and update with
   },
   "DownstreamApi": {
     "BaseUrl": "https://graph.microsoft.com/v1.0",
-    "Scopes": "User.Read"
+    "Scopes": [ "User.Read", "User.ReadBasic.All" ]
   }
 }
 ```
+
+**Note:** Azure AD configuration is placed in the base `appsettings.json` file because these settings are typically shared across environments. Environment-specific overrides can still be applied via `appsettings.Development.json` if needed.
 
 ### 2.2 (Recommended) Use User Secrets for ClientSecret
 
@@ -109,7 +115,7 @@ cd demo4\Demo4.EntraIntegration
 dotnet user-secrets set "AzureAd:ClientSecret" "YOUR-CLIENT-SECRET"
 ```
 
-Then remove the `ClientSecret` line from `appsettings.Development.json`.
+Then remove the `ClientSecret` line from `appsettings.json`.
 
 ## Step 3: Run the Application
 
@@ -236,7 +242,7 @@ Check console output for Graph API calls:
 
 **Fix:**
 1. Verify in Azure Portal: Redirect URIs exactly match
-2. Check `appsettings.Development.json`: `CallbackPath` is `/signin-oidc`
+2. Check `appsettings.json`: `CallbackPath` is `/signin-oidc`
 3. Ensure you're using `https://localhost:7210` (not 5210)
 
 ### Error: "AADSTS65001: The user or administrator has not consented"
@@ -262,7 +268,7 @@ Check console output for Graph API calls:
 
 **Fix:**
 1. Verify `User.Read` scope granted in Azure Portal
-2. Check `DownstreamApi:Scopes` in `appsettings.Development.json`
+2. Check `DownstreamApi:Scopes` in `appsettings.json`
 3. Ensure `EnableTokenAcquisitionToCallDownstreamApi()` called in `Program.cs`
 4. Check logs for MSAL token errors
 
@@ -272,7 +278,7 @@ Check console output for Graph API calls:
 
 **Fix:**
 1. Verify `AddMicrosoftIdentityWebApp()` is called in `Program.cs`
-2. Check `AzureAd` section in `appsettings.Development.json` is complete
+2. Check `AzureAd` section in `appsettings.json` is complete
 3. Ensure TenantId, ClientId are valid GUIDs
 4. Restart the app
 
@@ -280,7 +286,7 @@ Check console output for Graph API calls:
 
 ### Development
 - ✅ Use User Secrets for `ClientSecret`
-- ✅ Use `appsettings.Development.json` for non-sensitive config
+- ✅ Use `appsettings.json` for shared Azure AD config
 
 ### Production
 - ❌ Never commit `ClientSecret` to source control

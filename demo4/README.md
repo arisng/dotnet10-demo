@@ -191,9 +191,9 @@ From the **Overview** page, copy:
 
 ## Configuration
 
-### Update `appsettings.Development.json`
+### Update `appsettings.json`
 
-Add the Entra ID configuration section:
+Add the Entra ID configuration section to the base `appsettings.json` file (this configuration is shared across environments):
 
 ```json
 {
@@ -202,10 +202,11 @@ Add the Entra ID configuration section:
   },
   "Logging": {
     "LogLevel": {
-      "Default": "Information",
+      "Default": "Debug",
       "Microsoft.AspNetCore": "Warning"
     }
   },
+  "AllowedHosts": "*",
   "AzureAd": {
     "Instance": "https://login.microsoftonline.com/",
     "Domain": "your-tenant.onmicrosoft.com",
@@ -217,10 +218,12 @@ Add the Entra ID configuration section:
   },
   "DownstreamApi": {
     "BaseUrl": "https://graph.microsoft.com/v1.0",
-    "Scopes": "User.Read"
+    "Scopes": [ "User.Read", "User.ReadBasic.All" ]
   }
 }
 ```
+
+**Note:** Azure AD configuration is placed in the base `appsettings.json` file rather than `appsettings.Development.json` because these settings are typically shared across development, staging, and production environments. Environment-specific overrides (like different tenant IDs) can still be applied via `appsettings.Development.json` if needed.
 
 **Security Note:** For production, move `ClientSecret` to Azure Key Vault or User Secrets. For local development:
 
@@ -459,7 +462,7 @@ public class GraphService : IGraphService
 ### "AADSTS50011: The reply URL does not match"
 
 - Verify redirect URIs in Entra app registration match exactly: `https://localhost:7210/signin-oidc`
-- Check for typos in `appsettings.Development.json` → `AzureAd:CallbackPath`
+- Check for typos in `appsettings.json` → `AzureAd:CallbackPath`
 
 ### "AADSTS65001: The user or administrator has not consented"
 
@@ -486,7 +489,7 @@ public class GraphService : IGraphService
 ### Graph API Returns 401 Unauthorized
 
 - Verify `User.Read` scope is granted in Entra portal
-- Check `DownstreamApi:Scopes` in `appsettings.Development.json`
+- Check `DownstreamApi:Scopes` in `appsettings.json`
 - Ensure `EnableTokenAcquisitionToCallDownstreamApi()` is called in `Program.cs`
 
 ### External Login Missing for Existing User

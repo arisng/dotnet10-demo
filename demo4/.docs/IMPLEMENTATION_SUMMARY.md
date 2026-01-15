@@ -114,7 +114,7 @@ builder.Services.AddAuthentication()
 }
 ```
 
-**File:** `appsettings.Development.json`
+**File:** `appsettings.json`
 - Pre-configured with placeholder values
 - Users must replace with their Entra app registration details
 - Includes guidance comments
@@ -274,7 +274,7 @@ User signs in → Entra issues ID token → App validates token
 - `Program.cs` - Added Entra authentication and Graph service registration
 - `Authorization/PermissionClaimsTransformation.cs` - Enhanced for Entra users
 - `appsettings.json` - Added AzureAd and DownstreamApi sections
-- `appsettings.Development.json` - Added Entra configuration placeholders
+- `appsettings.json` - Added Entra configuration placeholders
 - `Demo4.EntraIntegration.csproj` - Already had Microsoft.Identity.Web packages
 - `Client/Components/Diagnostics/AuthStateSurface.razor` - Enhanced to show Entra details
 

@@ -371,7 +371,7 @@ adminApi.MapGet("/roles", async ([FromServices] RoleManager<IdentityRole> roleMa
         .ToListAsync();
     return Results.Ok(roles);
 })
-.RequirePermission("admin.manage-roles");
+.RequirePermission("roles.manage");
 
 adminApi.MapPost("/role-mappings", async (CreateRoleMappingDto input, ApplicationDbContext db) =>
 {
@@ -403,7 +403,7 @@ adminApi.MapPost("/role-mappings", async (CreateRoleMappingDto input, Applicatio
 
     return Results.Created($"/api/admin/role-mappings/{mapping.Id}", mapping);
 })
-.RequirePermission("admin.manage-roles");
+.RequirePermission("roles.manage");
 
 adminApi.MapPut("/role-mappings/{id:int}", async (int id, UpdateRoleMappingDto input, ApplicationDbContext db) =>
 {
@@ -435,7 +435,7 @@ adminApi.MapPut("/role-mappings/{id:int}", async (int id, UpdateRoleMappingDto i
     await db.SaveChangesAsync();
     return Results.Ok(mapping);
 })
-.RequirePermission("admin.manage-roles");
+.RequirePermission("roles.manage");
 
 adminApi.MapDelete("/role-mappings/{id:int}", async (int id, ApplicationDbContext db) =>
 {
@@ -449,7 +449,7 @@ adminApi.MapDelete("/role-mappings/{id:int}", async (int id, ApplicationDbContex
     await db.SaveChangesAsync();
     return Results.NoContent();
 })
-.RequirePermission("admin.manage-roles");
+.RequirePermission("roles.manage");
 
 await DbSeeder.SeedDataAsync(app.Services);
 

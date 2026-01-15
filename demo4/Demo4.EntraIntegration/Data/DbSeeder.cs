@@ -25,7 +25,7 @@ public static class DbSeeder
         // 2. Seed Permissions
         var permissions = new Dictionary<string, string[]>
         {
-            { "Admin", ["weather.read", "weather.write", "users.read", "users.write", "users.delete", "reports.view", "reports.export"] },
+            { "Admin", ["weather.read", "weather.write", "users.read", "users.write", "users.delete", "reports.view", "reports.export", "roles.manage"] },
             { "Manager", ["weather.read", "weather.write", "users.read", "reports.view", "reports.export"] },
             { "User", ["weather.read", "reports.view"] }
         };

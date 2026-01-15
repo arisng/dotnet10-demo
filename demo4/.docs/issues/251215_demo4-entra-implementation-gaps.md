@@ -98,7 +98,7 @@ No UI for non-developers to manage Entra → Local role mappings.
    - `DELETE /api/admin/role-mappings/{id}`
 
 3. Add authorization:
-   - Require `admin.manage-roles` permission
+   - Require `roles.manage` permission
    - Restrict to Admin role users
 
 **Impact:** Enables self-service admin configuration without code changes.

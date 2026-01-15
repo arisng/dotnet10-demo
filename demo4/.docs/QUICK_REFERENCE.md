@@ -46,7 +46,7 @@ dotnet user-secrets clear
 
 ### Minimum Required Configuration
 
-Add to `appsettings.Development.json`:
+Add to `appsettings.json`:
 
 ```json
 {
