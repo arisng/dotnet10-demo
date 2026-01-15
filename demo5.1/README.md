@@ -31,7 +31,7 @@ graph TD
     Api --> DB
 ```
 
-  For C4 diagrams (C1/C2/C3), see `.docs/diagrams/`.
+For detailed protocol sequence diagrams of the authentication and API flows, see [.docs/diagrams/auth_flows.md](.docs/diagrams/auth_flows.md).
 
 ### Components
 
@@ -166,7 +166,14 @@ Now, the **Backend (`ApiService`)** owns the data.
 - **Frontend duty:** Authenticate user (Cookies), acquire token.
 - **Backend duty:** Validate token, manage users, authorize based on Claims/permissions.
 
-### 3. Aspire Orchestration
+### 3. Modern API Documentation (.NET 10)
+This demo showcases the latest best practices for OpenAPI in .NET 10:
+- **Built-in OpenAPI**: Uses `Microsoft.AspNetCore.OpenApi` for document generation (no Swashbuckle).
+- **Scalar UI**: Replaces the traditional Swagger UI with **Scalar**, a modern, interactive API reference.
+- **Source-Generated Metadata**: Uses the new .NET 10 source generator to extract API documentation directly from XML comments on classes and methods.
+- **Rich Schema**: Leverages `ProducesResponseType` with the new `Description` property and custom `IOpenApiOperationTransformer` to define security schemes (JWT/Bearer).
+
+### 4. Aspire Orchestration
 No more running multiple terminal windows. `Demo5_1.AppHost` runs everything. Service Discovery (`http://apiservice`) handles connection strings dynamically.
 
 ## Prerequisites
@@ -206,10 +213,41 @@ You must copy your Entra ID settings from `demo5/Demo5.DownstreamApi/appsettings
 
 ## How to Run
 
+### Option 1: Visual Studio / VS Code
 1.  **Open Solution:** `demo5.1/Demo5_1.sln`
 2.  **Startup Project:** Set `Demo5_1.AppHost` as the startup project.
 3.  **Run:** Press F5.
 4.  **Aspire Dashboard:** A dashboard will open. Click the endpoint for `webfrontend` (`https://localhost:...`) to launch the app.
+
+### Option 2: .NET CLI
+1.  **Navigate to AppHost directory:**
+    ```bash
+    cd demo5.1/Demo5_1.AppHost
+    ```
+
+2.  **Run the application:**
+    ```bash
+    dotnet run
+    ```
+
+3.  **Aspire Dashboard:** A dashboard will open. Click the endpoint for `webfrontend` (`https://localhost:...`) to launch the app.
+
+### Option 3: .NET CLI with Watch Mode (Development)
+1.  **Navigate to AppHost directory:**
+    ```bash
+    cd demo5.1/Demo5_1.AppHost
+    ```
+
+2.  **Run with hot reload:**
+    ```bash
+    dotnet watch run
+    ```
+
+3.  **Aspire Dashboard:** A dashboard will open. Click the endpoint for `webfrontend` (`https://localhost:...`) to launch the app.
+
+4.  **API Documentation:** 
+    - **OpenAPI JSON**: Available at `https://localhost:<apiservice-port>/openapi/v1.json`.
+    - **Scalar UI**: Available at `https://localhost:<apiservice-port>/scalar`. Use this modern UI to explore and test the Backend API directly.
 
 ## Tenant Simulation
 This demo implements a **pragmatic tenant simulation**. The `ApiService` resolves the current `tenantId` using `ITenantProvider`:
