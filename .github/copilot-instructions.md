@@ -2,7 +2,7 @@
 
 ## Overview & Scope
 
-This repository is a **progressive workshop** demonstrating modern .NET 10 patterns across 6 incremental demos:
+This repository is a **progressive workshop** demonstrating modern .NET 10 patterns across 8 incremental demos:
 
 | Demo | Focus | Key Patterns |
 |------|-------|--------------|
@@ -11,23 +11,37 @@ This repository is a **progressive workshop** demonstrating modern .NET 10 patte
 | **demo3** | BFF + RBAC | Permission-based authorization, role-permission junction table |
 | **demo4** | Entra ID Integration | OBO flow, Microsoft Graph, enterprise auth |
 | **demo5** | Downstream API | Server-to-server communication, protected scopes |
-| **demo6** | Modular Monolith | Vertical slices, Adapter pattern, Legacy integration |
+| **demo5.1** | Distributed Modular Monolith | .NET Aspire, YARP Proxy, "Two Locks" security |
+| **demo6** | Multi-Tenant SaaS | Finbuckle, Multi-Identity, Data Isolation |
+| **demo7** | Feature Flags & Hardening | Microsoft.FeatureManagement, Azure AppConfig |
 
-**Key assumption:** demo2 is the baseline—all subsequent demos build on demo2's architecture.
+**Key assumption:** demo2 is the baseline for monolithic demos; demo5.1 is the baseline for Aspire-based distributed demos.
 
 ## Workshop Project Structure
 
-Standard layout for demos 3+:
+### Standard Layout (Demos 1-5)
 
 ```
 demo<N>/
 ├── .docs/                      # Demo-specific documentation
-│   ├── issues/                 # Demo-specific markdown-based issue (deprecated, should use beads issues system instead)
+│   ├── issues/                 # Demo-specific markdown-based issue (deprecated)
 │   └── research/               # Demo-specific implementation notes
 ├── Demo<N>.<Name>/             # Server (Blazor Server, APIs, Identity)
 ├── Demo<N>.<Name>.Client/      # Client (Blazor WASM, prerendered)
 ├── Demo<N>.<Name>.Shared/      # Shared DTOs, models, interfaces
 └── README.md                   # Demo-specific walkthrough
+```
+
+### Aspire-Based Layout (Demos 5.1+)
+
+```
+demo<N>/
+├── Demo<N>.<Name>.AppHost/          # .NET Aspire Orchestrator
+├── Demo<N>.<Name>.ServiceDefaults/  # Shared telemetry/discovery
+├── Demo<N>.<Name>.ApiService/       # Modular Monolith Backend
+├── Demo<N>.<Name>.Web/              # Blazor Frontend (BFF with YARP)
+├── Demo<N>.<Name>.Web.Client/       # Blazor WASM Client
+└── Demo<N>.<Name>.Shared/           # Shared models/interfaces
 ```
 
 ## Creating a New Demo
@@ -62,7 +76,7 @@ scripts/copy-demo.ps1 -NewDemoNumber <n> -DemoName <PascalCase>
 ### Identity Foundation (demo1+)
 
 - **Auth Method:** ASP.NET Core Identity cookie-based authentication
-- **Schema Version:** Must use `IdentitySchemaVersions.Version3` for passkey support (demo3+, demo5)
+- **Schema Version:** Must use `IdentitySchemaVersions.Version3` for passkey support (demo2+)
 - **Endpoints:** Keep `app.MapAdditionalIdentityEndpoints()` to wire passkey endpoints and `/Account/*` pages
 - **Default Users (demo3+):**
   | Email | Password | Role |
@@ -153,30 +167,44 @@ builder.Services.AddScoped<IUserService, ClientUserService>();
 - Uses OBO (On-Behalf-Of) flow to exchange user token for downstream token
 - Downstream API validates Bearer tokens via `AddMicrosoftIdentityWebApi()`
 
-**Example (demo5):**
-```
-BFF /api/downstream-weather
-  ↓
-IDownstreamApi.GetForecastAsync()
-  ↓
-POST https://localhost:7220/api/forecast (with Bearer token)
-  ↓
-DownstreamApi validates token + "Forecast.Read" scope
-```
+### Distributed Modular Monolith (demo5.1+)
 
-## Modular Monolith Architecture (demo6+)
+**Pattern:**
+- **.NET Aspire:** Orchestrates service discovery and environment configuration.
+- **YARP Proxy:** Implemented in the Frontend (BFF) to forward `/api/*` requests to the `ApiService`, removing manual `HttpClient` wrappers.
+- **"Two Locks" Security:**
+    - **Outer Lock:** Entra ID / JWT verification at the proxy/API entry point.
+    - **Inner Lock:** Fine-grained Permission-Based RBAC (from demo3) enforced within vertical slices.
+- **Identity Shift Left:** Identity logic move to `ApiService` while Frontend handles authentication.
+
+## SaaS & Multi-Tenancy (demo6+)
+
+**Pattern:**
+- **Finbuckle.MultiTenant:** Handles tenant resolution (host, header, etc.) and data isolation.
+- **Multi-Identity:** Toggles auth providers (Passkey vs. Entra) based on tenant configuration.
+- **Data Isolation:** Supports both Shared DB (query filters) and Dedicated DB (dynamic connection strings).
+- **Tenant Context in Blazor:** Uses `ITenantProvider` to persist context across SignalR circuit state.
+
+## Feature Flags & Hardening (demo7)
+
+**Pattern:**
+- **Microsoft.FeatureManagement:** Toggles features per tenant using the configuration layer.
+- **Azure App Configuration:** Centralized management of flags and secrets.
+- **Hardening:** CSP, rate limiting, and OpenTelemetry observability.
+
+## Modular Monolith Architecture
 
 **Vertical Slices:**
 Organize code by feature/domain rather than technical layer. Each slice contains its own:
 - Data access (EF Core or Adapter)
 - Service logic
-- API endpoints
+- API endpoints (mapped via `IEndpointRouteBuilder` extensions)
 - UI components
 
-**Integration Patterns:**
-1.  **Greenfield (User Service):** Direct EF Core access to local DB.
+**Integration Patterns (demo6):**
+1.  **Greenfield (User Service):** Direct EF Core access to local DB with tenant filters.
 2.  **Legacy (Order Service):** `LegacyOrderAdapter` wraps calls to legacy HTTP APIs.
-3.  **Modern (Graph Service):** `IDownstreamApi` wraps calls to Microsoft Graph.
+3.  **Modern (Graph Service):** `IDownstreamApi` wraps calls to Microsoft Graph via OBO.
 
 ## Port Conventions
 
