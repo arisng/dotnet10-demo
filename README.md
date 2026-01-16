@@ -2,6 +2,14 @@
 
 This workspace hosts an incremental set of demos that teach modern .NET 10 patterns, evolving from Identity foundations to a full Modular Monolith architecture. Key topics include passkeys, dual-mode Blazor apps, RBAC, BFF security, Entra ID integration, and vertical slice architecture. Every demo builds directly on the previous one so you can learn by doing without losing context.
 
+## Patterns Catalog (Single Source of Truth)
+
+This repo treats `.docs/reference/patterns/` as the living reference for architectural, design, and system patterns used across all demos. It is continuously updated and should guide implementation decisions and documentation updates.
+
+- Start here: `.docs/reference/patterns/index.md`
+- Pattern entries live in: `.docs/reference/patterns/catalog/`
+- Guidance for choosing and applying patterns: `.docs/reference/patterns/guidance/`
+
 ## Grounded highlights (Dec 2025)
 
 - **Passkeys everywhere:** ASP.NET Core Identity’s schema version 3 plus the new Blazor Web App template deliver turnkey passkey registration, login, and Manage UI.¹ ²
