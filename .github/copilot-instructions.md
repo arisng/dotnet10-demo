@@ -66,6 +66,12 @@ scripts/copy-demo.ps1 -NewDemoNumber <n> -DemoName <PascalCase>
 3. Update root `README.md` demo table with new demo entry
 4. Test the build: `dotnet build demo<n>/Demo<n>.<Name>.slnx`
 
+### Pattern Selection Rules (Required)
+
+- Every new demo **must** introduce at least one pattern from the patterns catalog.
+- Pattern selection **must** build on prior demos and reflect a strategic progression (foundation → integration → distribution → hardening).
+- Document the chosen patterns in the demo README and link back to the catalog entry for each pattern.
+
 ### Namespace Convention
 
 - Namespace follows project name exactly: `Demo<N>.<Name>` → `namespace Demo<N>.<Name>;`
@@ -235,6 +241,14 @@ dotnet watch
 
 Each demo README must include: Goal, Prerequisites, How to Run, What's New (for demo2+).
 Root `README.md` maintains the demo lineup table with focus, dependencies, and highlights.
+
+### Patterns Catalog (Single Source of Truth)
+
+The workspace treats `.docs/reference/patterns/` as the living reference for architectural, design, and system patterns. It is continuously updated and should guide implementation decisions and documentation updates.
+
+- Entry point: `.docs/reference/patterns/index.md`
+- Pattern entries: `.docs/reference/patterns/catalog/`
+- Guidance: `.docs/reference/patterns/guidance/`
 
 ### `.docs/` Folder Convention
 

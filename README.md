@@ -200,3 +200,9 @@ dotnet watch
 2. Implement `demo7` – Feature Flag Management & Hardening: Implement subscription-based toggles and production observability.
 3. Validate all demos (demo1-demo5.1) for completeness and alignment with changelog achievements.
 4. Keep this roadmap updated as new .NET 10 identity features ship.
+
+## Demo Creation Rules
+
+- Every new demo must introduce at least one pattern from `.docs/reference/patterns/catalog/`.
+- Pattern selection must build on prior demos and reflect a strategic progression (foundation → integration → distribution → hardening).
+- The demo README must list the chosen patterns and link back to their catalog entries.
