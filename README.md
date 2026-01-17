@@ -1,29 +1,88 @@
 # .NET 10 Modern Architecture Workshop
 
-This workspace hosts an incremental set of demos that teach modern .NET 10 patterns, evolving from Identity foundations to a full Modular Monolith architecture. Key topics include passkeys, dual-mode Blazor apps, RBAC, BFF security, Entra ID integration, and vertical slice architecture. Every demo builds directly on the previous one so you can learn by doing without losing context.
+This repo is a **progressive workshop** for continuously evolving a modern .NET 10 web application across **both backend and frontend**. It is designed to stay current (today: **January 17, 2026**) and to grow beyond what is already documented. Each demo builds on the previous one so you can learn by doing without losing context.
+
+**Motivation:** turn the workshop into a reusable blueprint that can bootstrap a SaaS business quickly. The goal is to plug in a **dynamic business domain** and produce deployable POCs/MVPs within a day while still following modern architecture standards.
 
 ## Patterns Catalog (Single Source of Truth)
 
-This repo treats `.docs/reference/patterns/` as the living reference for architectural, design, and system patterns used across all demos. It is continuously updated and should guide implementation decisions and documentation updates.
+We actively maintain `.docs/reference/patterns/` as the curated catalog of modern industry standards and web architecture patterns. It is continuously updated and **drives what we build next**.
 
 - Start here: `.docs/reference/patterns/index.md`
 - Pattern entries live in: `.docs/reference/patterns/catalog/`
 - Guidance for choosing and applying patterns: `.docs/reference/patterns/guidance/`
 
-## Grounded highlights (Dec 2025)
+## Scope & Glossary (How We Use Terms)
 
-- **Passkeys everywhere:** ASP.NET Core Identity’s schema version 3 plus the new Blazor Web App template deliver turnkey passkey registration, login, and Manage UI.¹ ²
-- **Out-of-the-box endpoints:** `MapAdditionalIdentityEndpoints` wires `/PasskeyCreationOptions` and `/PasskeyRequestOptions`, so our demos should keep Identity components intact instead of rewriting them.²
-- **Modern Architecture:** Evolve from a simple monolithic app to a Modular Monolith with vertical slices, demonstrating how to handle legacy integration and downstream APIs.
-- **Security guardrails:** Microsoft recommends explicit HTTPS, HSTS, and custom origin validation when necessary; we’ll surface those practices in later demos.¹
-- **Documentation enhancements:** Comprehensive `.docs/` folder structure implemented for research, issues, and agent workflows to support AI-driven development.
-- **AI agents integration:** Multi-agent architecture with Research-Agent, Implementation-Agent, and Verifier-Agent for structured .NET 10 feature development.
+- **Scope:** This workshop is not limited to what is already documented. The catalog and demos evolve as new standards and platform features emerge.
+- **Pattern:** A reusable architectural or technical solution (e.g., BFF, OIDC, RBAC) documented in the patterns catalog.
+- **Business feature:** Stakeholder-facing capability or outcome the product delivers (e.g., “approve invoices,” “export reports”).
+- **Infrastructure capability:** Foundational technical work that enables business features (e.g., identity integration, observability, multi-tenancy).
 
-> ¹ [Enable Web Authentication API (WebAuthn) passkeys](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys/?view=aspnetcore-10.0) · ² [Implement passkeys in ASP.NET Core Blazor Web Apps](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/passkeys/blazor?view=aspnetcore-10.0)
+## Research & Implementation Planning (Required)
+
+- Every selected pattern **must** be researched and grounded with references to **official docs and/or reputable technical blogs**.
+- The **implementation plan and references live in the demo’s `.docs/` folder**, not in the root README.
+- Root README stays high-level; demo-level `.docs/` files carry the detail.
+
+## Progression Map (How We Track Evolution)
+
+**Progression template (per demo)**
+
+```
+Demo: <demoN>
+Inherits: <demoN-1>
+Adds patterns:
+- <Pattern A>
+- <Pattern B>
+- <Pattern C>
+Business lift:
+- <New segment, tier, or workflow enabled>
+- <Operational or revenue impact>
+Technical lift:
+- <New runtime boundary, security model, or scalability feature>
+- <Key platform capability added>
+```
+
+**Example – demo4**
+
+```
+Demo: demo4
+Inherits: demo3
+Adds patterns:
+- Entra ID integration
+- App Roles → permissions mapping
+- OBO (Microsoft Graph)
+Business lift:
+- Enterprise SSO onboarding
+- Centralized role management
+Technical lift:
+- External identity boundary
+- Delegated token flow
+```
+
+This progression view is the **strategic map** for building a reusable SaaS blueprint with concrete implementation, strong testing, and production‑ready deployment. Product Owners can provide new business demands, and Tech Leads can quickly map them to an existing demo or select new patterns from the catalog to create the next demo. The Tech Lead continuously maintains and evolves the patterns catalog so the blueprint stays aligned with modern industry standards.
+
+**Decision flow (PO → TL)**
+
+```
+PO input → match business lift → find demo
+        → if no match → select patterns from catalog → create new demo
+        → document plan in demo<N>/.docs/research/ → implement + test
+```
+
+**Documentation structure**
+
+- **Demo Lineup (this README):** high-level view of the journey and status.
+- **Demo README (`demo<N>/README.md`):** goal, prerequisites, how to run, and what’s new.
+- **Demo research & plans (`demo<N>/.docs/research/`):** per‑pattern research notes and implementation plan, with references.
+- **Patterns Catalog (`.docs/reference/patterns/`):** the authoritative catalog and guidance used by all demos.
+
+This provides traceability from **catalog → research → implementation**, while keeping the root README focused and scannable.
 
 ## Quick Start
 
-1. Install the .NET 10 SDK (Preview) plus the EF Core tools. Run `dotnet new update` so the local template includes the latest Identity bits called out in Microsoft’s documentation.²
+1. Install the latest .NET 10 SDK plus the EF Core tools. Run `dotnet new update` so the local template includes the newest Identity scaffolding bits.
 2. Clone this repo, then start with `demo1` inside VS Code or JetBrains Rider.
 3. Use the commands below to apply the initial migration and run the first demo:
 
@@ -206,3 +265,4 @@ dotnet watch
 - Every new demo must introduce at least one pattern from `.docs/reference/patterns/catalog/`.
 - Pattern selection must build on prior demos and reflect a strategic progression (foundation → integration → distribution → hardening).
 - The demo README must list the chosen patterns and link back to their catalog entries.
+- Each chosen pattern must have demo-level research + implementation planning documented in `demo<N>/.docs/research/` with references.
