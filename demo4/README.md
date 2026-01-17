@@ -12,6 +12,17 @@ Add Microsoft Entra ID as an external identity provider alongside local passkey 
 - **Microsoft Graph permissions** to read user profile data
 - VS Code or JetBrains Rider
 
+## Patterns Selected (Catalog)
+
+Use this template for future demos: **Pattern → Why here → Evidence (code/feature)**.
+
+| Pattern (Catalog)                                                                                                             | Why Here                                                            | Evidence in Demo                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OpenID Connect (OIDC)** — [auth-oidc-external-provider](../.docs/reference/patterns/catalog/auth-oidc-external-provider.md) | Add an external IdP alongside passkeys for a hybrid identity model. | `AddMicrosoftIdentityWebApp()` wiring and OIDC callbacks in `demo4/Demo4.EntraIntegration/Program.cs`.                                                            |
+| **Auto-Provisioning** — [authz-auto-provisioning](../.docs/reference/patterns/catalog/authz-auto-provisioning.md)             | Create and sync local users on first Entra sign-in.                 | `IEntraUserProvisioningService` invoked from `OnTokenValidated` in `demo4/Demo4.EntraIntegration/Program.cs`.                                                     |
+| **Claims Mapping** — [authz-claims-mapping](../.docs/reference/patterns/catalog/authz-claims-mapping.md)                      | Translate Entra App Roles into local roles and permissions.         | `PermissionClaimsTransformation` and role mapping logic in `demo4/Demo4.EntraIntegration/Authorization/PermissionClaimsTransformation.cs` plus role-mapping APIs. |
+| **Multi-Identity** — [auth-multi-identity](../.docs/reference/patterns/catalog/auth-multi-identity.md)                        | Offer local passkey auth and Entra ID side by side.                 | Dual login options with a unified permission pipeline in `demo4/Demo4.EntraIntegration`.                                                                         |
+
 ## Architecture Changes
 
 Demo4 transforms the monolithic Blazor Web App to support **dual authentication sources** while maintaining unified authorization:

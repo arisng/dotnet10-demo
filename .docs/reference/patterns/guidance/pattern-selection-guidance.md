@@ -7,7 +7,7 @@
 | Simple web app, single frontend | Cookie | Low overhead, simple model |
 | High security requirement | Passkey | Phishing-resistant, modern |
 | Enterprise/federated | OIDC | Centralized identity, compliance |
-| Multiple auth sources | Multi-Identity | Flexibility, gradual migration |
+| Multiple auth sources | [Multi-Identity](../catalog/auth-multi-identity.md) | Flexibility, gradual migration |
 | API for external clients | Bearer Token | Stateless, reusable |
 
 ## Choosing Authorization

@@ -33,7 +33,7 @@ Passwordless authentication using the WebAuthn API. Users register a security ke
 - ❌ Recovery procedures needed if key lost
 
 **Related Patterns:**
-- Multi-Identity
+- [Multi-Identity](auth-multi-identity.md)
 - [Claims Transformation](authz-claims-transformation.md)
 
 **Demo References:**

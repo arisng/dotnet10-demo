@@ -37,7 +37,7 @@ OAuth 2.0 layer for authentication. Browser-based redirect flow where user authe
 - [On-Behalf-Of (OBO) Flow](auth-obo-flow.md)
 - [Auto-Provisioning](authz-auto-provisioning.md)
 - [Claims Mapping](authz-claims-mapping.md)
-- Multi-Identity
+- [Multi-Identity](auth-multi-identity.md)
 
 **Demo References:**
 - demo4: Single Entra ID provider

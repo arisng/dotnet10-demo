@@ -45,7 +45,7 @@ Application code accesses via ITenantInfo
 - ❌ Performance tuning needed
 
 **Related Patterns:**
-- Multi-Identity
+- [Multi-Identity](auth-multi-identity.md)
 
 **Demo References:**
 - demo6: Finbuckle for tenant isolation

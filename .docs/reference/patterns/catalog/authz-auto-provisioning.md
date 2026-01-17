@@ -48,7 +48,7 @@ Automatic creation and configuration of user accounts on first authentication wi
 **Related Patterns:**
 - [OpenID Connect](auth-oidc-external-provider.md)
 - [Claims Mapping](authz-claims-mapping.md)
-- Multi-Identity
+- [Multi-Identity](auth-multi-identity.md)
 
 **Demo References:**
 - demo4: Entra user auto-provisioning on first login
