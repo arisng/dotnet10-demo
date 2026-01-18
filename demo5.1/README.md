@@ -166,14 +166,7 @@ Now, the **Backend (`ApiService`)** owns the data.
 - **Frontend duty:** Authenticate user (Cookies), acquire token.
 - **Backend duty:** Validate token, manage users, authorize based on Claims/permissions.
 
-### 3. Modern API Documentation (.NET 10)
-This demo showcases the latest best practices for OpenAPI in .NET 10:
-- **Built-in OpenAPI**: Uses `Microsoft.AspNetCore.OpenApi` for document generation (no Swashbuckle).
-- **Scalar UI**: Replaces the traditional Swagger UI with **Scalar**, a modern, interactive API reference.
-- **Source-Generated Metadata**: Uses the new .NET 10 source generator to extract API documentation directly from XML comments on classes and methods.
-- **Rich Schema**: Leverages `ProducesResponseType` with the new `Description` property and custom `IOpenApiOperationTransformer` to define security schemes (JWT/Bearer).
-
-### 4. Aspire Orchestration
+### 3. Aspire Orchestration
 No more running multiple terminal windows. `Demo5_1.AppHost` runs everything. Service Discovery (`http://apiservice`) handles connection strings dynamically.
 
 ## Prerequisites
@@ -245,9 +238,7 @@ You must copy your Entra ID settings from `demo5/Demo5.DownstreamApi/appsettings
 
 3.  **Aspire Dashboard:** A dashboard will open. Click the endpoint for `webfrontend` (`https://localhost:...`) to launch the app.
 
-4.  **API Documentation:** 
-    - **OpenAPI JSON**: Available at `https://localhost:<apiservice-port>/openapi/v1.json`.
-    - **Scalar UI**: Available at `https://localhost:<apiservice-port>/scalar`. Use this modern UI to explore and test the Backend API directly.
+4.  **API Documentation:** OpenAPI documentation is available at `https://localhost:<apiservice-port>/openapi/v1/openapi.json` when the ApiService is running.
 
 ## Tenant Simulation
 This demo implements a **pragmatic tenant simulation**. The `ApiService` resolves the current `tenantId` using `ITenantProvider`:

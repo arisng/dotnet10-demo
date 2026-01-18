@@ -13,9 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Scalar.AspNetCore;
-using Microsoft.OpenApi;
-using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,7 +53,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
         };
     });
 
-authBuilder.AddMicrosoftIdentityWebApi(builder.Configuration, "AzureAd", "Bearer");
+authBuilder.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), "Bearer");
 
 authBuilder.AddJwtBearer("LocalBearer", options =>
     {
@@ -122,20 +119,6 @@ builder.Services.AddOpenApi(options =>
             Version = "v1",
             Description = "Distributed Modular Monolith API with OAuth scopes and local RBAC"
         };
-        
-        // Define Security Schemes
-        document.Components ??= new();
-        document.Components.SecuritySchemes.Add("Bearer", new OpenApiSecurityScheme
-        {
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below. Example: 'Bearer 12345abcdef'"
-        });
-
-        // Add Security Requirement globally (optional, or per endpoint)
-        // Here we'll leave it to per-endpoint or just defined in components for now
-        
         return Task.CompletedTask;
     });
 });
@@ -148,13 +131,9 @@ app.MapDefaultEndpoints();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference(options => 
-    {
-        options.WithTitle("Demo5.1 API Reference")
-               .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
-               .WithPreferredScheme("Bearer");
-    });
 }
+
+app.MapOpenApi("/openapi/v1/openapi.json");
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
@@ -162,14 +141,18 @@ app.UseAuthorization();
 
 // Weather Endpoints
 var weatherApi = app.MapGroup("/api/weather")
-    .WithTags("Weather");
+    .WithTags("Weather")
+    .WithOpenApi();
 
-weatherApi.MapGet("/", GetWeatherForecast)
+weatherApi.MapGet("/", async (ServerWeatherService service) => await service.GetForecastAsync())
+    .WithSummary("Get weather forecast")
+    .WithDescription("Retrieves the current weather forecast data. Requires weather.read permission.")
     .RequireApiPermission("weather.read");
 
 // User Management Endpoints
 var usersApi = app.MapGroup("/api/users")
-    .WithTags("User Management");
+    .WithTags("User Management")
+    .WithOpenApi();
 
 usersApi.MapGet("/permissions", async (HttpContext context, IPermissionService service) => 
 {
@@ -230,7 +213,8 @@ usersApi.MapDelete("/{id}", async (string id, ServerUserService service) =>
 
 // Reports Endpoints
 var reportsApi = app.MapGroup("/api/reports")
-    .WithTags("Reports");
+    .WithTags("Reports")
+    .WithOpenApi();
 
 reportsApi.MapGet("/", async (ServerReportService service) => await service.GetReportsAsync())
     .WithSummary("Get reports")
@@ -283,6 +267,7 @@ app.MapPost("/api/identity/token", async (LoginRequest request, UserManager<Appl
     });
 })
 .WithTags("Identity")
+.WithOpenApi()
 .WithSummary("Authenticate local user")
 .WithDescription("Authenticates a local user and returns a JWT token for API access.");
 
@@ -325,6 +310,7 @@ app.MapPost("/api/identity/provision", async (HttpContext context, ApplicationDb
     return Results.Ok();
 })
 .WithTags("Identity")
+.WithOpenApi()
 .WithSummary("Provision user")
 .WithDescription("Provisions a user in the system after authentication. Requires API access scope.")
 .RequireAuthorization("Api.Access"); // Requires access_as_user scope
@@ -332,20 +318,3 @@ app.MapPost("/api/identity/provision", async (HttpContext context, ApplicationDb
 await DbSeeder.SeedDataAsync(app.Services);
 
 app.Run();
-
-// Re-using partial Program for static methods allows XML doc comments to be picked up correctly
-public partial class Program
-{
-    /// <summary>
-    /// Retrieves the weather forecast.
-    /// </summary>
-    /// <remarks>
-    /// This endpoint returns a 5-day weather forecast. 
-    /// Requires 'weather.read' permission.
-    /// </remarks>
-    /// <param name="service">The weather service.</param>
-    /// <returns>A list of weather forecasts.</returns>
-    [ProducesResponseType<WeatherForecast[]>(StatusCodes.Status200OK, Description = "The weather forecast list")]
-    public static async Task<IResult> GetWeatherForecast(ServerWeatherService service)
-        => TypedResults.Ok(await service.GetForecastAsync());
-}

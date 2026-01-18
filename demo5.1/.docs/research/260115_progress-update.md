@@ -27,15 +27,6 @@
 - **Permission Claims Transformation**: Adds permission claims during auth
 - **Clean Architecture**: YARP eliminates business logic from frontend
 
-### 🔧 TROUBLESHOOTING & REFINEMENTS (2026-01-15)
-
-- **✅ FIXED: Authentication Scheme Collision**: Resolved `Scheme already exists: Cookies` exception by removing redundant `.AddCookie("Cookies")` call in `Web` project. `AddMicrosoftIdentityWebApp` already registers this scheme.
-- **✅ FIXED: Static Asset Mapping**: Replaced `app.UseStaticFiles()` with `app.MapStaticAssets()` (.NET 10 pattern) to resolve warnings and ensure Blazor WASM assets are correctly mapped.
-- **✅ FIXED: Root-Relative Pathing**: Updated `Login.razor` and `NavMenu.razor` to use root-relative links (e.g., `/Account/Login`), ensuring navigation works from any URL depth.
-- ✅ **FIXED: Ambiguous Route Matches**: Resolved `AmbiguousMatchException` by deleting duplicate Razor components (`Home.razor`, `Weather.razor`, `NotFound.razor`) in the server project that were also present in the client project. Routable components now correctly reside only in the `.Client` project for InteractiveAuto mode.
-- **✅ ENHANCED: ReturnUrl Support**: Implemented `ReturnUrl` handling in `Login.razor` and `Program.cs` endpoints (Login/Logout) to maintain user context during authentication flows.
-- **✅ ENHANCED: Local Login Claims**: Added `ClaimTypes.NameIdentifier` to manual login claims to ensure proper support for `PersistingServerAuthenticationStateProvider` during prerendering.
-
 ### 🔧 ISSUES FOUND
 
 1. **✅ FIXED: Missing AzureAd Configuration**: Added AzureAd section to `Demo5_1.ApiService/appsettings.json` with placeholder values (ClientId, TenantId need to be configured for actual Entra ID usage). **UPDATED**: User has now copied real Entra ID settings to both Web and ApiService projects.
