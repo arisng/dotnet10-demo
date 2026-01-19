@@ -15,6 +15,7 @@ Learning-oriented lessons that guide you through practical activities.
 
 Task-oriented guides for solving real-world problems.
 
+- [How to Set Up the .NET 10 Demo Environment](./how-to/setup-environment.md)
 - `Upgrade to ASP.NET Core 10` (suggested)
 - [Optimize Queries with EF Core Projections](./how-to/data-access/optimize-queries-with-projections.md)
 - [How to Fix Microsoft Graph `MsalUiRequiredException (user_null)` (demo4)](./how-to/auth/how-to-fix-graph-msal-user-null.md)
