@@ -156,6 +156,19 @@ public class PermissionClaimsTransformation : IClaimsTransformation
             identity.AddClaim(new Claim("permission", permission));
         }
 
+        // Add synchronized profile fields as claims for UI visibility
+        if (!string.IsNullOrEmpty(user.JobTitle))
+            identity.AddClaim(new Claim("job_title", user.JobTitle));
+        
+        if (!string.IsNullOrEmpty(user.Department))
+            identity.AddClaim(new Claim("department", user.Department));
+            
+        if (!string.IsNullOrEmpty(user.OfficeLocation))
+            identity.AddClaim(new Claim("office_location", user.OfficeLocation));
+            
+        if (!string.IsNullOrEmpty(user.MobilePhone))
+            identity.AddClaim(new Claim("mobile_phone", user.MobilePhone));
+
         // Mark transformation as complete
         identity.AddClaim(new Claim("permissions_loaded", "true"));
 

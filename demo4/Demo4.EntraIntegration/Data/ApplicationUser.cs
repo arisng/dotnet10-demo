@@ -26,6 +26,26 @@ public class ApplicationUser : IdentityUser
     /// Job title synchronized from Microsoft Graph API
     /// </summary>
     public string? JobTitle { get; set; }
+
+    /// <summary>
+    /// Department synchronized from Microsoft Graph API
+    /// </summary>
+    public string? Department { get; set; }
+
+    /// <summary>
+    /// Office location synchronized from Microsoft Graph API
+    /// </summary>
+    public string? OfficeLocation { get; set; }
+
+    /// <summary>
+    /// Mobile phone synchronized from Microsoft Graph API
+    /// </summary>
+    public string? MobilePhone { get; set; }
+
+    /// <summary>
+    /// Last time the profile was synchronized from Microsoft Graph API
+    /// </summary>
+    public DateTimeOffset? LastGraphSync { get; set; }
 }
 
 

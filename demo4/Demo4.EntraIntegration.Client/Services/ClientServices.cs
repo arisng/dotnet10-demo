@@ -77,4 +77,11 @@ public class ClientGraphService(HttpClient http) : IGraphService
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsByteArrayAsync();
     }
+
+    public async Task SyncUserProfileToLocalAsync(string userId)
+    {
+        // Client-side implementation could call a server endpoint if needed.
+        // For now, syncing is handled on the server during provisioning.
+        await Task.CompletedTask;
+    }
 }

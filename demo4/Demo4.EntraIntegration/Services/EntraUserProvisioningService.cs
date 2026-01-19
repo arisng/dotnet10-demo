@@ -21,6 +21,7 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
     private readonly ApplicationDbContext _context;
+    private readonly IGraphService _graphService;
     private readonly ILogger<EntraUserProvisioningService> _logger;
     private readonly IServiceProvider _serviceProvider;
 
@@ -28,12 +29,14 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
         ApplicationDbContext context,
+        IGraphService graphService,
         ILogger<EntraUserProvisioningService> logger,
         IServiceProvider serviceProvider)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _context = context;
+        _graphService = graphService;
         _logger = logger;
         _serviceProvider = serviceProvider;
     }
@@ -339,20 +342,20 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
     {
         try
         {
-            // Update basic claims from token
+            // Sync extended profile from Microsoft Graph API
+            // This method internally updates DisplayName, JobTitle, Dept, etc. from Graph data.
+            await _graphService.SyncUserProfileToLocalAsync(user.Id);
+        }
+        catch (Exception ex)
+        {
+            // Fallback: if Graph sync fails, at least try to update basic DisplayName from the token
             var name = principal.FindFirstValue("name");
             if (!string.IsNullOrEmpty(name) && user.DisplayName != name)
             {
                 user.DisplayName = name;
+                await _userManager.UpdateAsync(user);
             }
 
-            // Intentionally not calling Microsoft Graph here.
-            // This method runs during the OIDC authentication event pipeline, where user token acquisition
-            // (and the MSAL user account context) may not be fully established yet.
-            await _userManager.UpdateAsync(user);
-        }
-        catch (Exception ex)
-        {
             // Non-fatal: continue without Graph data
             _logger.LogWarning(ex, "Failed to update Graph profile for user {Email}, continuing without extended profile", user.Email);
         }

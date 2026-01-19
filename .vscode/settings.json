@@ -1,4 +1,8 @@
 {
     "chatgpt.openOnStartup": false,
-    "chat.useNestedAgentsMdFiles": false
+    "chat.useNestedAgentsMdFiles": false,
+    "chat.tools.terminal.autoApprove": {
+        "mkdir": true,
+        "dotnet build": true
+    }
 }

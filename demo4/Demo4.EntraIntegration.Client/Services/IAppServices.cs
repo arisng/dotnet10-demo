@@ -24,4 +24,5 @@ public interface IGraphService
 {
     Task<UserProfile?> GetUserProfileAsync();
     Task<byte[]?> GetUserPhotoAsync();
+    Task SyncUserProfileToLocalAsync(string userId);
 }

@@ -1,6 +1,8 @@
 using Demo4.EntraIntegration.Client.Services;
+using Demo4.EntraIntegration.Data;
 using Demo4.EntraIntegration.Shared.Models;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Identity.Abstractions;
 using Microsoft.Identity.Web;
 using System.Configuration;
@@ -16,15 +18,22 @@ public class GraphService : IGraphService
 {
     private readonly IDownstreamApi _downstreamApi;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly IConfiguration _configuration;
     private readonly ILogger<GraphService> _logger;
 
     private const string EntraAuthenticationScheme = "MicrosoftEntra";
 
-    public GraphService(IDownstreamApi downstreamApi, IHttpContextAccessor httpContextAccessor, ILogger<GraphService> logger, IConfiguration configuration)
+    public GraphService(
+        IDownstreamApi downstreamApi, 
+        IHttpContextAccessor httpContextAccessor, 
+        UserManager<ApplicationUser> userManager,
+        ILogger<GraphService> logger, 
+        IConfiguration configuration)
     {
         _downstreamApi = downstreamApi;
         _httpContextAccessor = httpContextAccessor;
+        _userManager = userManager;
         _logger = logger;
         _configuration = configuration;
     }
@@ -51,10 +60,10 @@ public class GraphService : IGraphService
                 user.FindFirst(ClaimConstants.PreferredUserName)?.Value,
                 user.GetLoginHint());
 
-            var scopes = _configuration.GetSection("DownstreamApis:MicrosoftGraph:Scopes").Get<string[]>();
+            var scopes = _configuration.GetSection("DownstreamApi:Scopes").Get<string[]>();
             if (scopes is null || scopes.Length == 0)
             {
-                var scopesValue = _configuration["DownstreamApis:MicrosoftGraph:Scopes"];
+                var scopesValue = _configuration["DownstreamApi:Scopes"];
                 scopes = scopesValue?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
             }
 
@@ -64,7 +73,7 @@ public class GraphService : IGraphService
                 {
                     options.RelativePath = "/me";
                     options.Scopes = scopes;
-                    options.AcquireTokenOptions.AuthenticationOptionsName = OpenIdConnectDefaults.AuthenticationScheme; ;
+                    options.AcquireTokenOptions.AuthenticationOptionsName = EntraAuthenticationScheme;
                 },
                 user: user);
 
@@ -80,6 +89,45 @@ public class GraphService : IGraphService
         {
             _logger.LogError(ex, "Failed to fetch user profile from Microsoft Graph");
             return null;
+        }
+    }
+
+    public async Task SyncUserProfileToLocalAsync(string userId)
+    {
+        _logger.LogInformation("Syncing Graph profile for user ID: {UserId}", userId);
+
+        var dbUser = await _userManager.FindByIdAsync(userId);
+        if (dbUser == null)
+        {
+            _logger.LogWarning("Cannot sync profile: user with ID {UserId} not found in database", userId);
+            return;
+        }
+
+        var profile = await GetUserProfileAsync();
+        if (profile == null)
+        {
+            _logger.LogWarning("Failed to retrieve profile from Graph for user {Email}", dbUser.Email);
+            return;
+        }
+
+        _logger.LogInformation("Updating local user record with Graph data for {Email}", dbUser.Email);
+
+        dbUser.DisplayName = profile.DisplayName ?? dbUser.DisplayName;
+        dbUser.JobTitle = profile.JobTitle;
+        dbUser.Department = profile.Department;
+        dbUser.OfficeLocation = profile.OfficeLocation;
+        dbUser.MobilePhone = profile.MobilePhone;
+        dbUser.LastGraphSync = DateTimeOffset.UtcNow;
+
+        var result = await _userManager.UpdateAsync(dbUser);
+        if (result.Succeeded)
+        {
+            _logger.LogInformation("Successfully synchronized Graph profile for user {Email}", dbUser.Email);
+        }
+        else
+        {
+            _logger.LogError("Failed to update user profile in database: {Errors}", 
+                string.Join(", ", result.Errors.Select(e => e.Description)));
         }
     }
 
