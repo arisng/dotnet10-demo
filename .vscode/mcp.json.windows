@@ -1,5 +1,15 @@
 {
     "servers": {
+        "filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "${env:USERPROFILE}\\.claude\\skills",
+                "${env:APPDATA}\\Code\\User\\prompts",
+                "${workspaceFolder}"
+            ]
+        },
         // "sqlite": {
         //     "command": "docker",
         //     "args": [
@@ -20,7 +30,7 @@
                 "@modelcontextprotocol/server-memory"
             ],
             "env": {
-                "MEMORY_FILE_PATH": "${workspaceFolder}/.github/memory.json"
+                "MEMORY_FILE_PATH": "${workspaceFolder}\\.github\\memory.json"
             },
             "type": "stdio"
         },
@@ -30,7 +40,7 @@
 				"@cocal/google-calendar-mcp"
 			],
 			"env": {
-				"GOOGLE_OAUTH_CREDENTIALS": "${env:HOME}/.config/google-calendar-mcp/gcp-oauth.keys.json"
+				"GOOGLE_OAUTH_CREDENTIALS": "${env:USERPROFILE}\\.config\\google-calendar-mcp\\gcp-oauth.keys.json"
 			}
 		}
     }

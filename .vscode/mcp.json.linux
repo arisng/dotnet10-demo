@@ -1,5 +1,15 @@
 {
     "servers": {
+        "filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "${env:HOME}/.claude/skills",
+                "/mnt/c/Users/YourName/AppData/Roaming/"Code - Insiders"/User/prompts",
+                "${workspaceFolder}"
+            ]
+        },
         // "sqlite": {
         //     "command": "docker",
         //     "args": [
