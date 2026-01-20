@@ -8,15 +8,20 @@
 ## Patterns Selected (Catalog)
 [Summary of patterns from the catalog introduced in this demo.]
 
-| Pattern                         | Why Here    | Evidence              |
-| ------------------------------- | ----------- | --------------------- |
+| Pattern                                                        | Why Here    | Evidence              |
+| -------------------------------------------------------------- | ----------- | --------------------- |
 | [Pattern Name](../.docs/reference/patterns/catalog/pattern.md) | [Rationale] | [File/Code Reference] |
 
 ## Tech Stack
-[Summary of key technologies and libraries used in this demo.]
+[Summary of key technologies and libraries used in this demo with specific versions.]
 
-- **[.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0):** [Rationale]
-- **[Library Name](link):** [Rationale]
+- **[.NET 10.0 SDK (10.0.0)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0):** [Rationale]
+- **[ASP.NET Core (10.0.0)](https://learn.microsoft.com/en-us/aspnet/core/):** [Rationale]
+- **[Blazor WebAssembly (10.0.0)](https://learn.microsoft.com/en-us/aspnet/core/blazor/):** [Rationale]
+- **[Entity Framework Core (10.0.0)](https://learn.microsoft.com/en-us/ef/core/):** [Rationale]
+- **[Microsoft.Identity.Web (4.1.0)](https://learn.microsoft.com/en-us/azure/active-directory/develop/microsoft-identity-web):** [Rationale, if applicable]
+- **[.NET Aspire (13.1.0)](https://learn.microsoft.com/en-us/dotnet/aspire/):** [Rationale, if applicable]
+- **[Other Library (X.Y.Z)](link):** [Rationale]
 
 ## Research & Documentation
 [Links to demo-specific research and architectural decisions - "The Why"]

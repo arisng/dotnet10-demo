@@ -17,11 +17,13 @@ Add Microsoft Entra ID as an external identity provider alongside local passkey 
 
 ## Tech Stack
 
-- **.NET 10 SDK (Preview):** Core framework for building the Blazor Web App and APIs.
-- **ASP.NET Core Identity:** For passkey support, user management, and hybrid authentication using `IdentitySchemaVersions.Version3`.
-- **Microsoft.Identity.Web (v4.1.0):** For Entra ID integration, OIDC authentication, and OBO flow to Microsoft Graph.
+- **.NET 10.0 SDK (10.0.0):** Core framework for building the Blazor Web App and APIs.
+- **ASP.NET Core (10.0.0):** For web framework, Identity, and Minimal APIs.
+- **ASP.NET Core Identity (10.0.0):** For passkey support, user management, and hybrid authentication using `IdentitySchemaVersions.Version3`.
+- **Blazor WebAssembly (10.0.0):** For client-side interactivity.
+- **Entity Framework Core (10.0.0):** For database operations, migrations, and identity data persistence.
+- **Microsoft.Identity.Web (4.1.0):** For Entra ID integration, OIDC authentication, and OBO flow to Microsoft Graph.
 - **Microsoft Graph API:** For server-side fetching of user profiles and photos via the On-Behalf-Of (OBO) flow.
-- **EF Core:** For database operations, migrations, and identity data persistence.
 
 ## Research & Documentation
 
@@ -86,7 +88,7 @@ Demo4 transforms the monolithic Blazor Web App to support **dual authentication 
 ### 1. Prerequisites
 - **Completed:** demo3 (BFF APIs + Permission-Based RBAC)
 - **.NET 10 SDK** (Preview) with EF Core tools installed
-- **Azure Entra ID Tenant** with app registration. See [Azure Entra ID Setup](../.docs/setup/azure-entra-setup.md) for detailed steps.
+- **Azure Entra ID Tenant** with app registration. See [Azure Entra ID Setup](./.docs/setup/azure-entra-setup.md) for detailed steps.
 
 ### 2. Execution
 ```powershell

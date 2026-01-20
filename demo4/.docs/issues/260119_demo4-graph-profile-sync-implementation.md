@@ -148,7 +148,7 @@ Task SyncUserProfileToLocalAsync(string userId);
 ## Related Issues
 
 - Implementation guidance in `.docs/IMPLEMENTATION_GUIDANCE.md`
-- Research findings in `.docs/research/RESEARCH_FINDINGS.md`
+- Research findings in `.docs/research/graph-integration.md` and `.docs/research/hybrid-auth-identity.md`
 - Current gaps documented in `260115_demo4-readme-implementation-gaps.md`
 
 ## Priority: High

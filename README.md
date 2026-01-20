@@ -82,7 +82,7 @@ This provides traceability from **catalog → research → implementation**, whi
 
 ## Quick Start
 
-1. Install the latest .NET 10 SDK plus the EF Core tools. Run `dotnet new update` so the local template includes the newest Identity scaffolding bits.
+1. Install the latest .NET 10.0 SDK (10.0.0) plus the EF Core tools (10.0.0). Run `dotnet new update` so the local template includes the newest Identity scaffolding bits.
 2. Clone this repo, then start with `demo1` inside VS Code or JetBrains Rider.
 3. Use the commands below to apply the initial migration and run the first demo:
 
