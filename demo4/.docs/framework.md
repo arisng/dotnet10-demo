@@ -12,7 +12,7 @@ This document describes how `demo4/.docs/` supports the workshop's rule that eve
    - `research/`: store topic-based research files like `microsoft-identity-web.md`, `graph-integration.md`, `hybrid-auth-identity.md`, `security-and-metrics.md`, and `AUTO_PROVISIONING_RESEARCH.md`. Each research page should cite the pattern catalog entry that motivated the work and update `research/README.md` with a short summary.
    - `diagrams/`: keep architecture/visualization assets (like `architecture-c4-model-diagrams.md`) here so the analyses stay close to the research but live in their own folder for easy referencing in READMEs and docs.
    - `guidance/`: keep step-by-step instructions, environment variables, and non-technical prerequisites. Files here (like `guidance/setup-guide.md`) should include verification checklists and links back to `reference/quick-reference.md` so new devs can bootstrap quickly.
-   - `guidance/`: document the pattern rationale (`implementation-patterns.md`) plus the outcome, testing notes, and outstanding work (`implementation-summary.md`). Always call out the related code files and migration steps.
+   - `guidance/`: document the implementation strategy, pattern rationale, outcomes, and testing notes (see `guidance/implementation-details.md`). Always call out the related code files and migration steps.
    - `reference/`: capture reusable snippets (commands, SQL, URLs) that testers/reference-trackers need at a glance (see `reference/quick-reference.md`).
    - `support/`: capture troubleshooting notes, logging strategies, and runbooks that complement the reference snippets, especially `support/troubleshooting.md`.
    - `issues/`: treat Markdown files here as short-lived maintenance tickets. Each entry follows `YYMMDD_short-title.md`, describes an observed problem, and records the fix date with tags like `#investigate` or `#resolved`. Add `issues/README.md` if the workflow needs documentation.
@@ -22,8 +22,8 @@ This document describes how `demo4/.docs/` supports the workshop's rule that eve
    - What does the pattern solve? (Link to `.docs/reference/patterns/catalog/<pattern>.md`)
    - What evidence/official docs justify this approach? (Cite docs or vendor articles.)
    - What are the risks or known limitations? (Populate `support/` entries as needed.)
-2. **Implementation plan:** Draft `guidance/implementation-patterns.md` (if new) or update it with the exact code regions and configuration files involved. Each plan mentions the verification steps and database changes.
-3. **Follow-up & verification:** After merging changes, log the completion in `guidance/implementation-summary.md` and update `issues/` or `support/troubleshooting.md` with any new troubleshooting insights.
+2. **Implementation plan:** Draft or update `guidance/implementation-details.md` with the exact code regions and configuration files involved. Each plan mentions the verification steps and database changes.
+3. **Follow-up & verification:** After merging changes, log the completion in `guidance/implementation-details.md` and update `issues/` or `support/troubleshooting.md` with any new troubleshooting insights.
 4. **README ties:** Whenever `demo4/README.md` talks about a pattern or technology, link directly to the supporting `.docs` files so that readers can drill into the reasoning.
 
 ## Onboarding & Troubleshooting Rituals
@@ -35,7 +35,7 @@ Document the lifecycle of major issues so future contributors can resolve them q
 | AADSTS50011 redirect mismatch          | `support/troubleshooting.md`           | Verify redirect URIs, check that `CallbackPath` is `/signin-oidc`, and rerun `dotnet user-secrets list` after editing `appsettings.json`.     |
 | Graph API 401 or missing permissions   | `support/troubleshooting.md`           | Confirm `DownstreamApi:Scopes` include `User.Read`, inspect logs for MSAL errors, and follow the checklist in `reference/quick-reference.md`. |
 | Entra user has no permissions          | `issues/YYMMDD_missing-permissions.md` | Run the SQL snippets from `reference/quick-reference.md` to assign Admin/roles, then refresh the auth probe to confirm `permission` claims.   |
-| Token cache leaks or lost logins       | `guidance/implementation-patterns.md`  | Reference the distributed cache + encryption guidance; production must call `.AddDistributedTokenCaches()` and configure data protection.     |
+| Token cache leaks or lost logins       | `guidance/implementation-details.md`  | Reference the distributed cache + encryption guidance; production must call `.AddDistributedTokenCaches()` and configure data protection.     |
 
 Add or update these entries as new problems arise. Each troubleshooting file should include:
 - Context (where it was noticed)
@@ -48,14 +48,14 @@ When a future developer works on Demo4, they should:
 1. **Start in this framework** before modifying README or code: confirm the research note, plan, and verification steps exist.
 2. **Log any new pattern or technology:** mention it here, cite the pattern catalog entry, and capture the business/technical lift bullet points used in root README.
 3. **Tag related docs:** each `.docs` entry referencing code should include a “Related files” section listing the key project paths (e.g., `Demo4.EntraIntegration/Program.cs`).
-4. **Link to verification:** include checklist items inside `guidance/implementation-patterns.md` and `reference/quick-reference.md` so testers know how to prove the change works.
+4. **Link to verification:** include checklist items inside `guidance/implementation-details.md` and `reference/quick-reference.md` so testers know how to prove the change works.
 5. **Update onboarding notes:** when a dev raises a pain point (build failure, tooling mismatch), append it to `support/troubleshooting.md` (or create a new `support/<topic>.md`) with the date and a short resolution summary.
 
 ## Possible Gotchas to Watch
 Even though Demo4 is production-grade, expect these recurring issues:
-- **Token cache security:** remind the team that `AddInMemoryTokenCaches()` is development-only and production requires a distributed provider plus encryption (see `guidance/implementation-patterns.md`).
+- **Token cache security:** remind the team that `AddInMemoryTokenCaches()` is development-only and production requires a distributed provider plus encryption (see `guidance/implementation-details.md`).
 - **Redirect URI drift:** newcomers often misconfigure `CallbackPath`; keep the `guidance/setup-guide.md` checklist updated with exact URIs and port combos.
-- **Graph permissions:** if Microsoft Graph calls fail, reference the `DownstreamApi` scopes in `guidance/implementation-summary.md` and rerun `dotnet user-secrets` to refresh secrets.
+- **Graph permissions:** if Microsoft Graph calls fail, reference the `DownstreamApi` scopes in `guidance/implementation-details.md` and rerun `dotnet user-secrets` to refresh secrets.
 - **Claims desynchronization:** the claims transformation can re-run per request; log this in `support/troubleshooting.md` so future debugging starts with verifying the `permission_transformed` claim.
 - **Role assignment for Entra users:** mention in `issues/` and `reference/quick-reference.md` that Entra users have no permissions until assigned (or until demo6 automates this).
 
