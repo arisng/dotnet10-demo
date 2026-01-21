@@ -100,16 +100,16 @@ dotnet watch
 
 ## Demo Lineup
 
-| Demo    | Status    | Focus                                           | Depends On | Highlights                                                                                              |
-| ------- | --------- | ----------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------- |
-| demo1   | Completed | Identity scaffolding baseline                   | —          | CLI scaffolding, cookie auth foundation                                                                 |
-| demo2   | Completed | Dual-mode diagnostics + Passkeys                | demo1      | Auth state probe, full passkey implementation, WASM caching                                             |
-| demo3   | Completed | BFF APIs + Permission-Based RBAC                | demo2      | Fine-grained permissions, role→permission mapping, claims transformation                                |
-| demo4   | Completed | Microsoft Entra ID + Claims Mapping             | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth              |
-| demo5   | Completed | Custom Downstream APIs (Microservices)          | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison                                  |
-| demo5.1 | Completed | Distributed Modular Monolith with Aspire & YARP | demo5      | .NET Aspire orchestration, YARP Proxy, "Two Locks" security model, .NET 10 Built-in OpenAPI + Scalar UI |
-| demo6   | Planned   | The Multi-Tenant SaaS Monolith (SaaS)           | demo5.1    | Finbuckle, Multi-Identity per Tenant, Shared/Dedicated DB Choice                                        |
-| demo7   | Planned   | Feature Flag Management & Hardening             | demo6      | Subscription-based Flags, Azure AppConfig, Operational Hardening                                        |
+| Demo    | Status    | Focus                                           | Depends On | Highlights                                                                                                            |
+| ------- | --------- | ----------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| demo1   | Completed | Identity scaffolding baseline                   | —          | CLI scaffolding, cookie auth foundation                                                                               |
+| demo2   | Completed | Dual-mode diagnostics + Passkeys                | demo1      | Auth state probe, full passkey implementation, WASM caching                                                           |
+| demo3   | Completed | BFF APIs + Permission-Based RBAC                | demo2      | Fine-grained permissions, role→permission mapping, claims transformation                                              |
+| demo4   | Completed | Microsoft Entra ID + Claims Mapping             | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth, API-to-Navigation Handoff |
+| demo5   | Completed | Custom Downstream APIs (Microservices)          | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison                                                |
+| demo5.1 | Completed | Distributed Modular Monolith with Aspire & YARP | demo5      | .NET Aspire orchestration, YARP Proxy, "Two Locks" security model, .NET 10 Built-in OpenAPI + Scalar UI               |
+| demo6   | Planned   | The Multi-Tenant SaaS Monolith (SaaS)           | demo5.1    | Finbuckle, Multi-Identity per Tenant, Shared/Dedicated DB Choice                                                      |
+| demo7   | Planned   | Feature Flag Management & Hardening             | demo6      | Subscription-based Flags, Azure AppConfig, Operational Hardening                                                      |
 
 ## Next Steps
 
@@ -124,3 +124,4 @@ dotnet watch
 - Pattern selection must build on prior demos and reflect a strategic progression (foundation → integration → distribution → hardening).
 - The demo README must list the chosen patterns and link back to their catalog entries.
 - Each chosen pattern must have demo-level research + implementation planning documented in `demo<N>/.docs/research/` with references.
+- Demo READMEs must follow the standard template at [.docs/reference/templates/demo-readme-template.md](.docs/reference/templates/demo-readme-template.md), enforced by instructions in [.github/instructions/demo-readme.instructions.md](.github/instructions/demo-readme.instructions.md).
