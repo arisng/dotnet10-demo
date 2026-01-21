@@ -3,6 +3,7 @@
     "chat.useNestedAgentsMdFiles": false,
     "chat.tools.terminal.autoApprove": {
         "mkdir": true,
-        "dotnet build": true
+        "dotnet build": true,
+        "dotnet run": true
     }
 }
