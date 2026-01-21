@@ -7,7 +7,8 @@ namespace SaaS.Frontend.Services;
 public sealed class ServerWeatherForecaster(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
-    ITokenAcquisition tokenAcquisition) : IWeatherForecaster
+    ITokenAcquisition tokenAcquisition,
+    MicrosoftIdentityConsentAndConditionalAccessHandler consentHandler) : IWeatherForecaster
 {
     public async Task<IReadOnlyList<WeatherForecast>> GetWeatherAsync(CancellationToken cancellationToken = default)
     {
@@ -18,7 +19,16 @@ public sealed class ServerWeatherForecaster(
             scopes = scopesValue?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
         }
 
-        var token = await tokenAcquisition.GetAccessTokenForUserAsync(scopes);
+        string token;
+        try
+        {
+            token = await tokenAcquisition.GetAccessTokenForUserAsync(scopes);
+        }
+        catch (MicrosoftIdentityWebChallengeUserException ex)
+        {
+            consentHandler.HandleException(ex);
+            return [];
+        }
 
         var httpClient = httpClientFactory.CreateClient("WeatherApi");
 
