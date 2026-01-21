@@ -54,7 +54,7 @@ builder.Services.AddHttpClient(
     });
 
 builder.Services.AddScoped<IWeatherForecaster, ServerWeatherForecaster>();
-builder.Services.AddScoped<IGraphService, GraphService>();
+builder.Services.AddScoped<IGraphProfileService, GraphService>();
 
 builder.Services.AddReverseProxy()
     .LoadFromMemory(GetRoutes(), GetClusters())
@@ -107,7 +107,7 @@ app.MapRazorPages();
 var graphApi = app.MapGroup("/api/graph").RequireAuthorization();
 graphApi.MapGet(
     "/me",
-    async (IGraphService graphService, MicrosoftIdentityConsentAndConditionalAccessHandler cca, CancellationToken cancellationToken) =>
+    async (IGraphProfileService graphService, MicrosoftIdentityConsentAndConditionalAccessHandler cca, CancellationToken cancellationToken) =>
     {
         try
         {

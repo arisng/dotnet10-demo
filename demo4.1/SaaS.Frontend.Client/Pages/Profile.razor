@@ -1,0 +1,72 @@
+@page "/profile"
+@attribute [Authorize]
+@rendermode InteractiveAuto
+@inject IGraphProfileService GraphProfileService
+
+<PageTitle>Profile</PageTitle>
+
+<h1>Entra User Profile</h1>
+
+<p class="text-muted">Profile data is retrieved from Microsoft Graph.</p>
+
+<button class="btn btn-outline-primary" @onclick="LoadAsync" disabled="@(isLoading)">
+    @(isLoading ? "Loading..." : "Refresh")
+</button>
+
+@if (isLoading && profile is null && errorMessage is null)
+{
+    <p class="mt-3"><em>Loading profile...</em></p>
+}
+else if (errorMessage is not null)
+{
+    <div class="alert alert-danger mt-3" role="alert">
+        @errorMessage
+    </div>
+}
+else if (profile is null)
+{
+    <div class="alert alert-warning mt-3" role="alert">
+        No profile data is available yet.
+    </div>
+}
+else
+{
+    <div class="card mt-3 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">@DisplayName</h5>
+            <p class="card-text mb-1"><strong>Id:</strong> @profile.Id</p>
+            <p class="card-text mb-1"><strong>Email:</strong> @Email</p>
+            <p class="card-text"><strong>UPN:</strong> @profile.UserPrincipalName</p>
+        </div>
+    </div>
+}
+
+@code {
+    private GraphUserProfile? profile;
+    private bool isLoading;
+    private string? errorMessage;
+
+    private string DisplayName => profile?.DisplayName ?? profile?.UserPrincipalName ?? "Unknown user";
+    private string Email => profile?.Mail ?? "(not provided)";
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            profile = await GraphProfileService.GetMyProfileAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load profile from Microsoft Graph. {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

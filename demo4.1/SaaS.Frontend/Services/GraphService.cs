@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Abstractions;
 using Microsoft.Identity.Web;
+using SaaS.Shared;
 using System.Net.Http.Json;
 
 namespace SaaS.Frontend.Services;
@@ -9,7 +10,7 @@ public sealed class GraphService(
     IDownstreamApi downstreamApi,
     IHttpContextAccessor httpContextAccessor,
     IConfiguration configuration,
-    ILogger<GraphService> logger) : IGraphService
+    ILogger<GraphService> logger) : IGraphProfileService
 {
     public async Task<GraphUserProfile?> GetMyProfileAsync(CancellationToken cancellationToken = default)
     {
