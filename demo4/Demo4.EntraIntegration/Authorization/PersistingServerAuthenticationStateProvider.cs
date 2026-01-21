@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace Demo4.EntraIntegration.Authorization;
 
@@ -64,7 +65,7 @@ public class PersistingServerAuthenticationStateProvider : IDisposable
             }
 
             var oid = principal.GetObjectId() ?? user?.EntraObjectId;
-            var isEntraUser = !string.IsNullOrWhiteSpace(oid) || user?.ExternalAuthenticationProvider == "MicrosoftEntra";
+            var isEntraUser = !string.IsNullOrWhiteSpace(oid) || user?.ExternalAuthenticationProvider == OpenIdConnectDefaults.AuthenticationScheme;
 
             var tid = principal.FindFirst("tid")?.Value
                       ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid")?.Value;
@@ -93,7 +94,7 @@ public class PersistingServerAuthenticationStateProvider : IDisposable
 
                 var userInfo = new UserInfo
                 {
-                    UserId = userId,
+                    UserId = isEntraUser ? (oid ?? userId) : userId,
                     Email = email,
                     AuthProvider = isEntraUser ? "entra" : "local",
                     EntraObjectId = oid,

@@ -22,7 +22,7 @@ public class GraphService : IGraphService
     private readonly IConfiguration _configuration;
     private readonly ILogger<GraphService> _logger;
 
-    private const string EntraAuthenticationScheme = "MicrosoftEntra";
+    private const string EntraAuthenticationScheme = OpenIdConnectDefaults.AuthenticationScheme;
 
     public GraphService(
         IDownstreamApi downstreamApi, 
@@ -50,8 +50,9 @@ public class GraphService : IGraphService
             }
 
             _logger.LogInformation(
-                "Graph token context: authType={AuthType}, oid={Oid}, tid={Tid}, uid={Uid}, utid={Utid}, msal_account_id={MsalAccountId}, preferred_username={PreferredUsername}, login_hint={LoginHint}",
+                "Graph token context: authType={AuthType}, homeAccountId={HomeAccountId}, oid={Oid}, tid={Tid}, uid={Uid}, utid={Utid}, msal_account_id_claim={MsalAccountIdClaim}, preferred_username={PreferredUsername}, login_hint={LoginHint}",
                 user.Identity?.AuthenticationType,
+                user.GetMsalAccountId(),
                 user.FindFirst("oid")?.Value,
                 user.FindFirst("tid")?.Value,
                 user.FindFirst(ClaimConstants.UniqueObjectIdentifier)?.Value,
@@ -80,10 +81,10 @@ public class GraphService : IGraphService
             _logger.LogInformation("Successfully fetched user profile from Microsoft Graph");
             return result;
         }
-        catch (MicrosoftIdentityWebChallengeUserException)
+        catch (MicrosoftIdentityWebChallengeUserException ex)
         {
-            // Let the API layer convert this to a challenge response.
-            throw;
+            _logger.LogInformation("Microsoft Graph requested interactive challenge (incremental consent required)");
+            throw new ChallengeRequiredException("Challenge required", ex);
         }
         catch (Exception ex)
         {
@@ -144,8 +145,9 @@ public class GraphService : IGraphService
             }
 
             _logger.LogInformation(
-                "Graph token context (photo): authType={AuthType}, oid={Oid}, tid={Tid}, uid={Uid}, utid={Utid}, msal_account_id={MsalAccountId}, preferred_username={PreferredUsername}, login_hint={LoginHint}",
+                "Graph token context (photo): authType={AuthType}, homeAccountId={HomeAccountId}, oid={Oid}, tid={Tid}, uid={Uid}, utid={Utid}, msal_account_id_claim={MsalAccountIdClaim}, preferred_username={PreferredUsername}, login_hint={LoginHint}",
                 user.Identity?.AuthenticationType,
+                user.GetMsalAccountId(),
                 user.FindFirst("oid")?.Value,
                 user.FindFirst("tid")?.Value,
                 user.FindFirst(ClaimConstants.UniqueObjectIdentifier)?.Value,
@@ -173,10 +175,10 @@ public class GraphService : IGraphService
             _logger.LogWarning("User photo not available (Status: {StatusCode})", response?.StatusCode);
             return null;
         }
-        catch (MicrosoftIdentityWebChallengeUserException)
+        catch (MicrosoftIdentityWebChallengeUserException ex)
         {
-            // Let the API layer convert this to a challenge response.
-            throw;
+            _logger.LogInformation("Microsoft Graph requested interactive challenge for photo (incremental consent required)");
+            throw new ChallengeRequiredException("Challenge required", ex);
         }
         catch (Exception ex)
         {

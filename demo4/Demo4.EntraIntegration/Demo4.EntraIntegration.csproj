@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Identity.Web" Version="4.1.0" />
     <PackageReference Include="Microsoft.Identity.Web.DownstreamApi" Version="4.1.0" />
+    <PackageReference Include="Microsoft.Identity.Web.UI" Version="4.1.0" />
     <ProjectReference Include="..\Demo4.EntraIntegration.Client\Demo4.EntraIntegration.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.0" />

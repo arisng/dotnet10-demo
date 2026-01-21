@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.UI;
 using Microsoft.Net.Http.Headers;
 using System.Security.Claims;
 
@@ -37,6 +38,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents()
     .AddAuthenticationStateSerialization();
+
+builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
@@ -84,16 +87,18 @@ builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
         options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-        options.DefaultChallengeScheme = IdentityConstants.ExternalScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
     })
     .AddIdentityCookies();
 
 builder.Services.AddAuthentication()
-    .AddMicrosoftIdentityWebApp(
-        builder.Configuration.GetSection("AzureAd"),
-        openIdConnectScheme: "MicrosoftEntra",
-        cookieScheme: null,
-        subscribeToOpenIdConnectMiddlewareDiagnosticsEvents: true)
+    .AddMicrosoftIdentityWebApp(options => {
+        builder.Configuration.Bind("AzureAd", options);
+        options.SaveTokens = true;
+    }, 
+    openIdConnectScheme: OpenIdConnectDefaults.AuthenticationScheme,
+    cookieScheme: null,
+    subscribeToOpenIdConnectMiddlewareDiagnosticsEvents: true)
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddDownstreamApi("DownstreamApi", builder.Configuration.GetSection("DownstreamApi"))
     .AddInMemoryTokenCaches();
@@ -102,8 +107,10 @@ builder.Services.AddAuthentication()
 builder.Services.AddScoped<MicrosoftIdentityConsentAndConditionalAccessHandler>();
 
 // Configure OIDC events for auto-provisioning
-builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
+builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
+    options.SaveTokens = true;
+    options.SignInScheme = IdentityConstants.ApplicationScheme;
     options.Events = new OpenIdConnectEvents
     {
         OnTokenValidated = async context =>
@@ -195,6 +202,36 @@ builder.Services.Configure<OpenIdConnectOptions>("MicrosoftEntra", options =>
 
                 logger.LogInformation("OnTokenValidated: User provisioning completed for {Email} (ID: {UserId})",
                     user.Email, user.Id);
+
+                // Bridge to Identity Application Cookie
+                var signInManager = context.HttpContext.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+                var identityPrincipal = await signInManager.CreateUserPrincipalAsync(user);
+
+                // CRITICAL: Copy MSAL-required claims from the original principal to the new identity principal
+                if (context.Principal?.Identity is ClaimsIdentity originalIdentity && identityPrincipal.Identity is ClaimsIdentity newIdentity && originalIdentity != null)
+                {
+                    var claimsToCopy = new[] { 
+                        "oid", 
+                        "http://schemas.microsoft.com/identity/claims/objectidentifier", 
+                        "tid", 
+                        "http://schemas.microsoft.com/identity/claims/tenantid", 
+                        "preferred_username", 
+                        "msal_account_id", 
+                        "http://schemas.microsoft.com/identity/claims/msal_account_id" 
+                    };
+
+                    foreach (var claimType in claimsToCopy)
+                    {
+                        var claim = originalIdentity.FindFirst(claimType);
+                        if (claim != null && !newIdentity.HasClaim(c => c.Type == claimType))
+                        {
+                            newIdentity.AddClaim(claim);
+                        }
+                    }
+                }
+
+                context.Principal = identityPrincipal;
+                context.Properties.IsPersistent = true;
             }
             catch (Exception ex)
             {
@@ -263,6 +300,8 @@ app.MapRazorComponents<App>()
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
+app.MapControllers();
+
 // Weather API
 var weatherApi = app.MapGroup("/api/weather");
 
@@ -326,22 +365,24 @@ reportsApi.MapGet("/export", async (IReportService service) =>
 // Graph API endpoints
 var graphApi = app.MapGroup("/api/graph");
 
-graphApi.MapGet("/profile", async (IGraphService graphService, [FromServices] MicrosoftIdentityConsentAndConditionalAccessHandler cca) =>
+graphApi.MapGet("/profile", async (IGraphService graphService, HttpContext context) =>
 {
     try
     {
         var profile = await graphService.GetUserProfileAsync();
         return profile != null ? Results.Ok(profile) : Results.NotFound();
     }
-    catch (MicrosoftIdentityWebChallengeUserException ex)
+    catch (ChallengeRequiredException)
     {
-        cca.HandleException(ex);
-        return Results.Empty;
+        // For fetch/XHR requests from Blazor WASM, we cannot redirect due to CORS.
+        // We return a 403 Forbidden with a custom header stating that a challenge is required.
+        context.Response.Headers.Append("x-ms-challenge-required", "true");
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 })
 .RequireAuthorization("entra.user");
 
-graphApi.MapGet("/profile/photo", async (IGraphService graphService, [FromServices] MicrosoftIdentityConsentAndConditionalAccessHandler cca) =>
+graphApi.MapGet("/profile/photo", async (IGraphService graphService, HttpContext context) =>
 {
     try
     {
@@ -352,10 +393,11 @@ graphApi.MapGet("/profile/photo", async (IGraphService graphService, [FromServic
         }
         return Results.File(photoBytes, "image/jpeg");
     }
-    catch (MicrosoftIdentityWebChallengeUserException ex)
+    catch (ChallengeRequiredException)
     {
-        cca.HandleException(ex);
-        return Results.Empty;
+        // For fetch/XHR requests from Blazor WASM, we cannot redirect due to CORS.
+        context.Response.Headers.Append("x-ms-challenge-required", "true");
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 })
 .RequireAuthorization("entra.user");

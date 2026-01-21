@@ -52,6 +52,11 @@ public class ClientGraphService(HttpClient http) : IGraphService
     {
         using var response = await http.GetAsync("/api/graph/profile");
 
+        if (response.Headers.Contains("x-ms-challenge-required"))
+        {
+            throw new ChallengeRequiredException();
+        }
+
         if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
             or System.Net.HttpStatusCode.Forbidden
             or System.Net.HttpStatusCode.NotFound)
@@ -66,6 +71,11 @@ public class ClientGraphService(HttpClient http) : IGraphService
     public async Task<byte[]?> GetUserPhotoAsync()
     {
         using var response = await http.GetAsync("/api/graph/profile/photo");
+
+        if (response.Headers.Contains("x-ms-challenge-required"))
+        {
+            throw new ChallengeRequiredException();
+        }
 
         if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
             or System.Net.HttpStatusCode.Forbidden

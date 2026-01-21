@@ -3,6 +3,7 @@ using Demo4.EntraIntegration.Client.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using System.Security.Claims;
 
 namespace Demo4.EntraIntegration.Services;
@@ -149,7 +150,7 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
             UserName = email ?? $"entra_{oid}",
             Email = email,
             EmailConfirmed = true, // Trust Entra email verification
-            ExternalAuthenticationProvider = "MicrosoftEntra",
+            ExternalAuthenticationProvider = OpenIdConnectDefaults.AuthenticationScheme,
             EntraObjectId = oid,
             DisplayName = name
         };
@@ -169,7 +170,7 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
         {
             // Step 2: Add external login (critical for ExternalLoginSignInAsync to work)
             var addLoginResult = await _userManager.AddLoginAsync(user,
-                new UserLoginInfo("MicrosoftEntra", nameIdentifier, "Microsoft Entra ID"));
+                new UserLoginInfo(OpenIdConnectDefaults.AuthenticationScheme, nameIdentifier, "Microsoft Entra ID"));
 
             if (!addLoginResult.Succeeded)
             {
@@ -203,7 +204,7 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
     private async Task EnsureExternalLoginExistsAsync(ApplicationUser user, ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var logins = await _userManager.GetLoginsAsync(user);
-        if (logins.Any(l => l.LoginProvider == "MicrosoftEntra"))
+        if (logins.Any(l => l.LoginProvider == OpenIdConnectDefaults.AuthenticationScheme))
         {
             return; // Login already exists
         }
@@ -218,7 +219,7 @@ public class EntraUserProvisioningService : IEntraUserProvisioningService
         }
 
         var result = await _userManager.AddLoginAsync(user,
-            new UserLoginInfo("MicrosoftEntra", nameIdentifier, "Microsoft Entra ID"));
+            new UserLoginInfo(OpenIdConnectDefaults.AuthenticationScheme, nameIdentifier, "Microsoft Entra ID"));
 
         if (result.Succeeded)
         {

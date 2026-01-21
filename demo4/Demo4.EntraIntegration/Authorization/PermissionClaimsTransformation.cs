@@ -12,15 +12,18 @@ public class PermissionClaimsTransformation : IClaimsTransformation
 {
     private readonly IPermissionService _permissionService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<PermissionClaimsTransformation> _logger;
 
     public PermissionClaimsTransformation(
         IPermissionService permissionService,
         UserManager<ApplicationUser> userManager,
+        IConfiguration configuration,
         ILogger<PermissionClaimsTransformation> logger)
     {
         _permissionService = permissionService;
         _userManager = userManager;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -45,7 +48,7 @@ public class PermissionClaimsTransformation : IClaimsTransformation
         string? oid = principal.GetObjectId(); // Entra ID Object ID
         var isEntraUser = !string.IsNullOrEmpty(oid);
 
-        if (isEntraUser && !string.IsNullOrEmpty(oid))
+        if (isEntraUser)
         {
             // Entra ID user - lookup by Object ID
             // NOTE: User provisioning now happens in OIDC OnTokenValidated event (see Program.cs)
@@ -58,15 +61,32 @@ public class PermissionClaimsTransformation : IClaimsTransformation
                 _logger.LogWarning("Entra user with OID {Oid} not found in database. Skipping permissions but enriching principal for token acquisition.", oid);
 
                 var tidFallback = principal.FindFirstValue("tid")
-                                  ?? principal.FindFirstValue("http://schemas.microsoft.com/identity/claims/tenantid");
+                                  ?? principal.FindFirstValue("http://schemas.microsoft.com/identity/claims/tenantid")
+                                  ?? _configuration["AzureAd:TenantId"];
 
                 var preferredUsernameFallback = principal.FindFirstValue("preferred_username")
                                                 ?? principal.FindFirstValue(ClaimTypes.Upn)
                                                 ?? principal.FindFirstValue(ClaimTypes.Email);
 
-                if (!string.IsNullOrWhiteSpace(tidFallback) && !identity.HasClaim(c => c.Type == "tid"))
+                if (!string.IsNullOrWhiteSpace(oid))
                 {
-                    identity.AddClaim(new Claim("tid", tidFallback));
+                    if (!identity.HasClaim(c => c.Type == ClaimConstants.UniqueObjectIdentifier))
+                        identity.AddClaim(new Claim(ClaimConstants.UniqueObjectIdentifier, oid));
+                    
+                    if (!identity.HasClaim(c => c.Type == ClaimConstants.ObjectId))
+                        identity.AddClaim(new Claim(ClaimConstants.ObjectId, oid));
+                }
+
+                if (!string.IsNullOrWhiteSpace(tidFallback))
+                {
+                    if (!identity.HasClaim(c => c.Type == "tid"))
+                        identity.AddClaim(new Claim("tid", tidFallback));
+
+                    if (!identity.HasClaim(c => c.Type == ClaimConstants.UniqueTenantIdentifier))
+                        identity.AddClaim(new Claim(ClaimConstants.UniqueTenantIdentifier, tidFallback));
+
+                    if (!identity.HasClaim(c => c.Type == ClaimConstants.TenantId))
+                        identity.AddClaim(new Claim(ClaimConstants.TenantId, tidFallback));
                 }
 
                 if (!string.IsNullOrWhiteSpace(preferredUsernameFallback) && !identity.HasClaim(c => c.Type == "preferred_username"))
@@ -99,16 +119,33 @@ public class PermissionClaimsTransformation : IClaimsTransformation
             // when trying to AcquireTokenSilent.
             var tid = principal.FindFirstValue("tid")
                       ?? principal.FindFirstValue("http://schemas.microsoft.com/identity/claims/tenantid")
-                      ?? (await _userManager.GetClaimsAsync(user)).FirstOrDefault(c => c.Type == "tid")?.Value;
+                      ?? (await _userManager.GetClaimsAsync(user)).FirstOrDefault(c => c.Type == "tid")?.Value
+                      ?? _configuration["AzureAd:TenantId"];
 
             var preferredUsername = principal.FindFirstValue("preferred_username")
                                     ?? principal.FindFirstValue(ClaimTypes.Upn)
                                     ?? principal.FindFirstValue(ClaimTypes.Email)
                                     ?? user.Email;
 
-            if (!string.IsNullOrWhiteSpace(tid) && !identity.HasClaim(c => c.Type == "tid"))
+            if (!string.IsNullOrWhiteSpace(oid))
             {
-                identity.AddClaim(new Claim("tid", tid));
+                if (!identity.HasClaim(c => c.Type == ClaimConstants.UniqueObjectIdentifier))
+                    identity.AddClaim(new Claim(ClaimConstants.UniqueObjectIdentifier, oid));
+                
+                if (!identity.HasClaim(c => c.Type == ClaimConstants.ObjectId))
+                    identity.AddClaim(new Claim(ClaimConstants.ObjectId, oid));
+            }
+
+            if (!string.IsNullOrWhiteSpace(tid))
+            {
+                if (!identity.HasClaim(c => c.Type == "tid"))
+                    identity.AddClaim(new Claim("tid", tid));
+
+                if (!identity.HasClaim(c => c.Type == ClaimConstants.UniqueTenantIdentifier))
+                    identity.AddClaim(new Claim(ClaimConstants.UniqueTenantIdentifier, tid));
+
+                if (!identity.HasClaim(c => c.Type == ClaimConstants.TenantId))
+                    identity.AddClaim(new Claim(ClaimConstants.TenantId, tid));
             }
 
             if (!string.IsNullOrWhiteSpace(preferredUsername) && !identity.HasClaim(c => c.Type == "preferred_username"))
@@ -138,6 +175,56 @@ public class PermissionClaimsTransformation : IClaimsTransformation
             if (!string.IsNullOrEmpty(userId))
             {
                 user = await _userManager.FindByIdAsync(userId);
+
+                // If this local user has an Entra ID link, inject the Bridge claims
+                if (user != null && !string.IsNullOrEmpty(user.EntraObjectId))
+                {
+                    var entraOid = user.EntraObjectId;
+                    var tid = _configuration["AzureAd:TenantId"];
+                    var preferredUsername = user.Email;
+
+                    _logger.LogDebug("Processing local user {Email} with Entra link (OID: {Oid})", user.Email, entraOid);
+
+                    if (!identity.HasClaim(c => c.Type == ClaimConstants.UniqueObjectIdentifier))
+                        identity.AddClaim(new Claim(ClaimConstants.UniqueObjectIdentifier, entraOid));
+
+                    if (!identity.HasClaim(c => c.Type == ClaimConstants.ObjectId))
+                        identity.AddClaim(new Claim(ClaimConstants.ObjectId, entraOid));
+
+                    if (!string.IsNullOrEmpty(tid))
+                    {
+                        if (!identity.HasClaim(c => c.Type == ClaimConstants.UniqueTenantIdentifier))
+                            identity.AddClaim(new Claim(ClaimConstants.UniqueTenantIdentifier, tid));
+
+                        if (!identity.HasClaim(c => c.Type == ClaimConstants.TenantId))
+                            identity.AddClaim(new Claim(ClaimConstants.TenantId, tid));
+                        
+                        if (!identity.HasClaim(c => c.Type == "tid"))
+                            identity.AddClaim(new Claim("tid", tid));
+                    }
+
+                    if (!string.IsNullOrEmpty(preferredUsername))
+                    {
+                        if (!identity.HasClaim(c => c.Type == ClaimConstants.PreferredUserName))
+                            identity.AddClaim(new Claim(ClaimConstants.PreferredUserName, preferredUsername));
+                        
+                        // Add legacy/standard aliases
+                        if (!identity.HasClaim(c => c.Type == "preferred_username"))
+                            identity.AddClaim(new Claim("preferred_username", preferredUsername));
+                        
+                        if (!identity.HasClaim(c => c.Type == Microsoft.Identity.Web.Constants.LoginHint))
+                            identity.AddClaim(new Claim(Microsoft.Identity.Web.Constants.LoginHint, preferredUsername));
+                    }
+
+                    // Explicitly inject msal_account_id which is critical for MIW 2.x+
+                    if (!identity.HasClaim(c => c.Type == "msal_account_id"))
+                    {
+                        var msalAccountId = $"{entraOid}.{tid}";
+                        identity.AddClaim(new Claim("msal_account_id", msalAccountId));
+                        identity.AddClaim(new Claim("http://schemas.microsoft.com/identity/claims/msal_account_id", msalAccountId));
+                    }
+                }
+                
                 _logger.LogDebug("Processing local user: {Email}", user?.Email);
             }
         }

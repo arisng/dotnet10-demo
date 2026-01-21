@@ -8,12 +8,12 @@ Add Microsoft Entra ID as an external identity provider alongside local passkey 
 
 ## Patterns Selected (Catalog)
 
-| Pattern                                                                                                                          | Why Here                                                            | Evidence                                                                                                                                                                                                           |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **OpenID Connect (OIDC)** — [auth-oidc-external-provider](../.docs/reference/patterns/catalog/auth-oidc-external-provider.md) | Add an external IdP alongside passkeys for a hybrid identity model. | `AddMicrosoftIdentityWebApp()` wiring and OIDC callbacks in [demo4/Demo4.EntraIntegration/Program.cs](Demo4.EntraIntegration/Program.cs).                                                                          |
-| **Auto-Provisioning** — [authz-auto-provisioning](../.docs/reference/patterns/catalog/authz-auto-provisioning.md)             | Create and sync local users on first Entra sign-in.                 | `IEntraUserProvisioningService` invoked from `OnTokenValidated` in [demo4/Demo4.EntraIntegration/Program.cs](Demo4.EntraIntegration/Program.cs).                                                                   |
-| **Claims Mapping** — [authz-claims-mapping](../.docs/reference/patterns/catalog/authz-claims-mapping.md)                      | Translate Entra App Roles into local roles and permissions.         | `PermissionClaimsTransformation` and role mapping logic in [demo4/Demo4.EntraIntegration/Authorization/PermissionClaimsTransformation.cs](Demo4.EntraIntegration/Authorization/PermissionClaimsTransformation.cs). |
-| **Multi-Identity** — [auth-multi-identity](../.docs/reference/patterns/catalog/auth-multi-identity.md)                        | Offer local passkey auth and Entra ID side by side.                 | Dual login options with a unified permission pipeline in `demo4/Demo4.EntraIntegration`.                                                                                                                           |
+| Pattern                                                                                                                                         | Why Here                                                                    | Evidence                                                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **OpenID Connect (OIDC)** — [auth-oidc-external-provider](../.docs/reference/patterns/catalog/auth-oidc-external-provider.md)                   | Add an external IdP alongside passkeys for a hybrid identity model.         | `AddMicrosoftIdentityWebApp()` wiring and OIDC callbacks in [demo4/Demo4.EntraIntegration/Program.cs](Demo4.EntraIntegration/Program.cs).                                                                          |
+| **Auto-Provisioning** — [authz-auto-provisioning](../.docs/reference/patterns/catalog/authz-auto-provisioning.md)                               | Create and sync local users on first Entra sign-in.                         | `IEntraUserProvisioningService` invoked from `OnTokenValidated` in [demo4/Demo4.EntraIntegration/Program.cs](Demo4.EntraIntegration/Program.cs).                                                                   |
+| **Claims Mapping** — [authz-claims-mapping](../.docs/reference/patterns/catalog/authz-claims-mapping.md)                                        | Translate Entra App Roles into local roles and permissions.                 | `PermissionClaimsTransformation` and role mapping logic in [demo4/Demo4.EntraIntegration/Authorization/PermissionClaimsTransformation.cs](Demo4.EntraIntegration/Authorization/PermissionClaimsTransformation.cs). |
+| **Multi-Identity** — [auth-multi-identity](../.docs/reference/patterns/catalog/auth-multi-identity.md)                                          | Offer local passkey auth and Entra ID side by side.                         | Dual login options with a unified permission pipeline in `demo4/Demo4.EntraIntegration`.                                                                                                                           |
 
 ## Tech Stack
 
@@ -30,6 +30,9 @@ Add Microsoft Entra ID as an external identity provider alongside local passkey 
 - **Research Findings:** [.docs/research/RESEARCH_FINDINGS.md](.docs/research/RESEARCH_FINDINGS.md)
 - **Auto-Provisioning Research:** [.docs/research/AUTO_PROVISIONING_RESEARCH.md](.docs/research/AUTO_PROVISIONING_RESEARCH.md)
 - **Architecture Diagrams:** [.docs/research/architecture-c4-model-diagrams.md](.docs/research/architecture-c4-model-diagrams.md)
+- **CORS Fix (API-to-Navigation Handoff):** [.docs/research/260120_api_to_navigation_handoff.md](.docs/research/260120_api_to_navigation_handoff.md)
+- **Claims Bridge (OBO user_null Fix):** [.docs/research/260120_identity_entra_bridge_logic.md](.docs/research/260120_identity_entra_bridge_logic.md)
+- **Multi-Identity Re-Validation:** [.docs/research/260120_multi_identity_validation.md](.docs/research/260120_multi_identity_validation.md)
 - **ADR:** [Auto-Provisioning Refactoring](../.docs/issues/251124_entra-auto-provisioning-oidc-refactoring.md) (Note: Moved from root issues to demo-specific context).
 
 ## Architecture & Decisions
@@ -82,13 +85,15 @@ Demo4 transforms the monolithic Blazor Web App to support **dual authentication 
 - **Auto-Provisioning Service:** Created `IEntraUserProvisioningService` for user creation and role syncing in OIDC events.
 - **Enhanced Diagnostics:** Updated `AuthStateProbe` to show authentication provider, Entra claims, and Graph data.
 - **Entra ID Claims Mapping:** Mapped App Roles to local roles/permissions.
+- **Identity-Entra Claims Bridge:** Resolved infinite redirect loops and `user_null` errors by enriching Identity principals with OIDC tokens hints.
+- **WASM CORS Resolution:** Implemented the "API-to-Navigation Handoff" pattern to support interactive challenges in InteractiveAuto mode without CORS errors.
 
 ## Getting Started
 
 ### 1. Prerequisites
 - **Completed:** demo3 (BFF APIs + Permission-Based RBAC)
 - **.NET 10 SDK** (Preview) with EF Core tools installed
-- **Azure Entra ID Tenant** with app registration. See [Azure Entra ID Setup](./.docs/setup/azure-entra-setup.md) for detailed steps.
+- **Azure Entra ID Tenant** with app registration. See [Azure Entra ID Setup](./.docs/guidance/setup-guide.md) for detailed steps.
 
 ### 2. Execution
 ```powershell
@@ -109,6 +114,10 @@ dotnet watch
 ## Troubleshooting
 
 See [Troubleshooting](../.docs/support/troubleshooting.md) for common issues and fixes.
+
+### Outstanding Issues (TODO)
+
+- **Graph/OBO Loop (TODO):** Entra Profile page can enter a redirect loop when Graph OBO token acquisition fails (`user_null`). Tracked in [.docs/issues/260121_graph-obo-loop-user-null.md](./.docs/issues/260121_graph-obo-loop-user-null.md).
 
 ## What's Next?
 

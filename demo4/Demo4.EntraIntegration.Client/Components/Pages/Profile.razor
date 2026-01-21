@@ -6,8 +6,8 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @rendermode InteractiveAuto
-@attribute [Authorize(Policy = "entra.user")]
 @inject IGraphService GraphService
+@inject NavigationManager NavigationManager
 
 <PageTitle>Profile</PageTitle>
 
@@ -15,95 +15,130 @@
 
 <p>This component demonstrates Microsoft Graph API integration by displaying your profile data and photo.</p>
 
-@if (error != null)
+<!-- Debug Block: Show current authentication state and claims -->
+@if (authState != null)
 {
-    <div class="alert alert-danger">
-        <strong>Error:</strong> @error
-    </div>
-}
-else if (isLoading)
-{
-    <p><em>Loading profile...</em></p>
-}
-else if (profile == null)
-{
-    <div class="alert alert-warning">
-        <strong>Profile not available.</strong>
-        <div class="small text-muted">The Graph API did not return a profile. Verify you signed in with Entra and granted Graph scopes (e.g. `User.Read`).</div>
-    </div>
-}
-else
-{
-    <div class="row">
-        <div class="col-md-4">
-            @if (photoBytes != null)
+    <details class="mb-3">
+        <summary>Debug: Authentication State</summary>
+        <p><strong>IsAuthenticated:</strong> @(authState.User?.Identity?.IsAuthenticated ?? false)</p>
+        <p><strong>User Name:</strong> @(authState.User?.Identity?.Name ?? "null")</p>
+        <p><strong>Claims:</strong></p>
+        <ul>
+            @if (authState.User?.Claims != null)
             {
-                <div class="text-center mb-3">
-                    <img src="data:image/jpeg;base64,@Convert.ToBase64String(photoBytes)"
-                         alt="Profile Photo"
-                         class="img-fluid rounded-circle"
-                         style="max-width: 200px; max-height: 200px;" />
-                </div>
+                @foreach (var claim in authState.User.Claims)
+                {
+                    <li><code>@claim.Type</code>: @claim.Value</li>
+                }
             }
             else
             {
-                <div class="text-center mb-3">
-                    <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center"
-                         style="width: 200px; height: 200px;">
-                        <i class="bi bi-person-fill" style="font-size: 4rem; color: #6c757d;"></i>
-                    </div>
-                    <p class="text-muted mt-2">No profile photo available</p>
-                </div>
+                <li>No claims available</li>
             }
-        </div>
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Profile Information</h5>
+        </ul>
+    </details>
+}
+
+<AuthorizeView Policy="entra.user">
+    <Authorized>
+        @if (error != null)
+        {
+            <div class="alert alert-danger">
+                <strong>Error:</strong> @error
+            </div>
+        }
+        else if (isLoading)
+        {
+            <p><em>Loading profile...</em></p>
+        }
+        else if (profile == null)
+        {
+            <div class="alert alert-warning">
+                <strong>Profile not available.</strong>
+                <div class="small text-muted">The Graph API did not return a profile. Verify you signed in with Entra and granted Graph scopes (e.g. `User.Read`).</div>
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                <div class="col-md-4">
+                    @if (photoBytes != null)
+                    {
+                        <div class="text-center mb-3">
+                            <img src="data:image/jpeg;base64,@Convert.ToBase64String(photoBytes)"
+                                 alt="Profile Photo"
+                                 class="img-fluid rounded-circle"
+                                 style="max-width: 200px; max-height: 200px;" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center mb-3">
+                            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center"
+                                 style="width: 200px; height: 200px;">
+                                <i class="bi bi-person-fill" style="font-size: 4rem; color: #6c757d;"></i>
+                            </div>
+                            <p class="text-muted mt-2">No profile photo available</p>
+                        </div>
+                    }
                 </div>
-                <div class="card-body">
-                    <dl class="row">
-                        @if (!string.IsNullOrEmpty(profile.DisplayName))
-                        {
-                            <dt class="col-sm-4">Display Name</dt>
-                            <dd class="col-sm-8">@profile.DisplayName</dd>
-                        }
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Profile Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row">
+                                @if (!string.IsNullOrEmpty(profile.DisplayName))
+                                {
+                                    <dt class="col-sm-4">Display Name</dt>
+                                    <dd class="col-sm-8">@profile.DisplayName</dd>
+                                }
 
-                        @if (!string.IsNullOrEmpty(profile.JobTitle))
-                        {
-                            <dt class="col-sm-4">Job Title</dt>
-                            <dd class="col-sm-8">@profile.JobTitle</dd>
-                        }
+                                @if (!string.IsNullOrEmpty(profile.JobTitle))
+                                {
+                                    <dt class="col-sm-4">Job Title</dt>
+                                    <dd class="col-sm-8">@profile.JobTitle</dd>
+                                }
 
-                        @if (!string.IsNullOrEmpty(profile.Mail))
-                        {
-                            <dt class="col-sm-4">Email</dt>
-                            <dd class="col-sm-8">@profile.Mail</dd>
-                        }
+                                @if (!string.IsNullOrEmpty(profile.Mail))
+                                {
+                                    <dt class="col-sm-4">Email</dt>
+                                    <dd class="col-sm-8">@profile.Mail</dd>
+                                }
 
-                        @if (!string.IsNullOrEmpty(profile.UserPrincipalName))
-                        {
-                            <dt class="col-sm-4">User Principal Name</dt>
-                            <dd class="col-sm-8">@profile.UserPrincipalName</dd>
-                        }
+                                @if (!string.IsNullOrEmpty(profile.UserPrincipalName))
+                                {
+                                    <dt class="col-sm-4">User Principal Name</dt>
+                                    <dd class="col-sm-8">@profile.UserPrincipalName</dd>
+                                }
 
-                        @if (!string.IsNullOrEmpty(profile.Id))
-                        {
-                            <dt class="col-sm-4">User ID</dt>
-                            <dd class="col-sm-8"><code>@profile.Id</code></dd>
-                        }
-                    </dl>
+                                @if (!string.IsNullOrEmpty(profile.Id))
+                                {
+                                    <dt class="col-sm-4">User ID</dt>
+                                    <dd class="col-sm-8"><code>@profile.Id</code></dd>
+                                }
+                            </dl>
+                        </div>
+                    </div>
                 </div>
             </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-info">
+            <strong>You are not signed in or missing required claims.</strong>
+            <p>Please <a href="/Account/Login">sign in</a> to view your profile.</p>
         </div>
-    </div>
-}
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
     private UserProfile? profile;
     private byte[]? photoBytes;
     private string? error;
     private bool isLoading = true;
+    private AuthenticationState? authState;
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
@@ -113,13 +148,14 @@ else
         if (AuthenticationStateTask == null)
         {
             isLoading = false;
+            error = "Authentication state is not available.";
             return;
         }
 
-        var authState = await AuthenticationStateTask;
+        authState = await AuthenticationStateTask;
         if (authState?.User?.Identity?.IsAuthenticated != true)
         {
-            error = "You must sign in to view your profile.";
+            // This shouldn't happen if AuthorizeView works, but for safety
             isLoading = false;
             return;
         }
@@ -143,6 +179,16 @@ else
         }
         catch (Exception ex)
         {
+            if (ex is ChallengeRequiredException)
+            {
+                // Redirect to a server-side endpoint that triggers the MIW challenge.
+                // We use forceLoad: true to ensure a full browser navigation, which allows the redirect to Microsoft
+                // to happen without CORS restrictions.
+                // We specify the scheme 'OpenIdConnect' to ensure the correct provider is challenged.
+                NavigationManager.NavigateTo("MicrosoftIdentity/Account/Challenge?scheme=OpenIdConnect&redirectUri=" + Uri.EscapeDataString(NavigationManager.Uri), forceLoad: true);
+                return;
+            }
+
             if (ex is UnauthorizedAccessException ||
                (ex is HttpRequestException httpEx && httpEx.StatusCode == HttpStatusCode.Forbidden))
             {
