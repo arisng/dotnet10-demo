@@ -60,4 +60,4 @@ This document defines the mandatory coding standards and architectural patterns 
 
 ## Validation
 - **Build:** Run `dotnet build` on the solution file (`.slnx`).
-- **Commit:** Use the [git-atomic-commit](c:\Users\ADMIN\.claude\skills\git-atomic-commit\SKILL.md) skill to group changes into logical atomic commits.
+- **Commit:** Use the `git-atomic-commit` skill to group changes into logical atomic commits.
