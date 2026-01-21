@@ -1,117 +1,92 @@
-# Demo 4.1 (Refined) - Entra + BFF (YARP) + Interactive Auto + Aspire
+# Demo 4.1: Entra + BFF (YARP) + Interactive Auto + Aspire
 
-Source spec: `demo4.1/.docs/251221-demo4-refined-implementation-plan.md`
+[[Home](../README.md) > **Demo 4.1**]
 
-## Projects
+## Goal
+Demonstrate refined Entra ID integration with the BFF pattern using YARP reverse proxy and .NET Aspire orchestration for secure downstream API communication in a distributed setup.
 
-- `demo4.1/SaaS.WeatherApp.sln`
-- Orchestrator: `demo4.1/SaaS.AppHost`
-- Backend API: `demo4.1/SaaS.Backend` (`GET /weather-forecast`, requires `Weather.Get` scope)
-- Frontend BFF: `demo4.1/SaaS.Frontend/SaaS.Frontend` (OIDC + token acquisition + YARP proxy)
-- Frontend WASM: `demo4.1/SaaS.Frontend/SaaS.Frontend.Client` (calls `/api/proxy/weather/...`)
+## Patterns Selected (Catalog)
+Enterprise authentication, API proxying, and distributed orchestration patterns introduced in this demo.
 
-## Configure Entra (complete)
+| Pattern                                                                                                               | Why Here                                                                  | Evidence                                                                      |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [auth-obo-flow](../.docs/reference/patterns/catalog/auth-obo-flow.md)                                                 | Implements On-Behalf-Of flow for secure token exchange to downstream APIs | [SaaS.Backend/Program.cs](SaaS.Backend/Program.cs)                             |
+| [api-bff](../.docs/reference/patterns/catalog/api-bff.md)                                                             | Backend-for-Frontend pattern to handle auth and proxy requests            | [SaaS.Frontend/Program.cs](SaaS.Frontend/Program.cs)                            |
+| [api-yarp-reverse-proxy](../.docs/reference/patterns/catalog/api-yarp-reverse-proxy.md)                               | YARP proxy for routing API calls to backend services                      | [SaaS.Frontend/Program.cs](SaaS.Frontend/Program.cs)                            |
+| [dist-dotnet-aspire-orchestration](../.docs/reference/patterns/catalog/dist-dotnet-aspire-orchestration.md)           | .NET Aspire for service discovery and orchestration                       | [SaaS.AppHost/Program.cs](SaaS.AppHost/Program.cs)                             |
+| [ui-interactiveauto-render-progression](../.docs/reference/patterns/catalog/ui-interactiveauto-render-progression.md) | Blazor InteractiveAuto for seamless SSR to WASM transition                | [SaaS.Frontend.Client/Program.cs](SaaS.Frontend.Client/Program.cs)              |
 
-This demo uses two app registrations:
+## Tech Stack
+Key technologies enabling enterprise-grade authentication and distributed architecture.
 
-- Backend API: `SaaS.BackendApi` (exposes delegated scope `Weather.Get`)
-- Frontend BFF: `SaaS.BlazorClient` (web app using auth code + PKCE, acquires user token, proxies via YARP)
+- **[.NET 10.0 SDK (10.0.0)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0):** Core runtime for ASP.NET Core and Blazor applications.
+- **[ASP.NET Core (10.0.1)](https://learn.microsoft.com/en-us/aspnet/core/):** Hosts the BFF and backend API endpoints.
+- **[Blazor WebAssembly (10.0.1)](https://learn.microsoft.com/en-us/aspnet/core/blazor/):** Client-side UI with InteractiveAuto render mode.
+- **[Entity Framework Core (10.0.0)](https://learn.microsoft.com/en-us/ef/core/):** Not used in this demo; data access is not the focus.
+- **[Microsoft.Identity.Web (4.2.0)](https://learn.microsoft.com/en-us/azure/active-directory/develop/microsoft-identity-web):** Entra ID integration and OBO flow for downstream APIs.
+- **[.NET Aspire (13.1.0)](https://learn.microsoft.com/en-us/dotnet/aspire/):** Orchestration and service discovery for distributed apps.
+- **[YARP (2.3.0)](https://microsoft.github.io/reverse-proxy/):** Reverse proxy for API routing.
 
-If you change the frontend port from `https://localhost:7001`, update the redirect URIs accordingly (see `demo4.1/SaaS.Frontend/SaaS.Frontend/Properties/launchSettings.json`).
+## Research & Documentation
+Links to demo-specific research and architectural decisions.
 
-### 1) Register the Backend API (`SaaS.BackendApi`)
+- **Research Findings:** [.docs/251221-demo4.1-graph-downstreamapi-401-token-empty.md](.docs/251221-demo4.1-graph-downstreamapi-401-token-empty.md)
+- **Implementation Plan:** [.docs/251221-demo4-refined-implementation-plan.md](.docs/251221-demo4-refined-implementation-plan.md)
+- **ADRs:** [.docs/251221-demo4.1-retrospective-auth-and-aspire.md](.docs/251221-demo4.1-retrospective-auth-and-aspire.md)
 
-Microsoft Entra admin center -> Identity -> Applications -> App registrations -> New registration
+## Architecture & Decisions
+Technical overview of the refined Entra integration with distributed components.
 
-- Name: `SaaS.BackendApi`
-- Supported account types: Single tenant (recommended for this demo)
-- Redirect URI: none
-
-After creation, record:
-- `Backend_TenantId` = Directory (tenant) ID
-- `Backend_ClientId` = Application (client) ID
-
-Expose an API:
-- App registration -> Expose an API
-- Application ID URI: accept the default (should look like `api://<Backend_ClientId>`)
-- Add a scope:
-  - Scope name: `Weather.Get`
-  - Who can consent: Admins only (recommended for dev consistency)
-  - Admin consent display name: `Read Weather Data`
-  - Admin consent description: `Read Weather Data`
-  - State: Enabled
-
-Record:
-- `Backend_Audience` (for `AzureAd:Audience`) = `api://<Backend_ClientId>`
-- `Backend_Scope` = `api://<Backend_ClientId>/Weather.Get`
-
-### 2) Register the Frontend BFF (`SaaS.BlazorClient`)
-
-App registrations -> New registration
-
-- Name: `SaaS.BlazorClient`
-- Supported account types: Single tenant (recommended for this demo)
-- Redirect URI: can be blank initially
-
-After creation, record:
-- `Frontend_TenantId` = Directory (tenant) ID
-- `Frontend_ClientId` = Application (client) ID
-
-Authentication:
-- App registration -> Authentication -> Add a platform -> Web
-- Redirect URIs:
-  - `https://localhost:7001/signin-oidc`
-  - `https://localhost:7001/signout-callback-oidc`
-- Front-channel logout URL:
-  - `https://localhost:7001/signout-callback-oidc`
-- Implicit grant and hybrid flows:
-  - Ensure both access tokens and ID tokens are unchecked
-
-Certificates & secrets:
-- App registration -> Certificates & secrets -> New client secret
-- Record `Frontend_ClientSecret` (you can't view it again after you leave the page)
-
-API permissions:
-- App registration -> API permissions -> Add a permission
-- My APIs -> select `SaaS.BackendApi` -> Delegated permissions -> select `Weather.Get`
-- Add permissions
-- Add a permission -> Microsoft Graph -> Delegated permissions -> select `User.Read` (recommended for `/me`)
-- Grant admin consent (recommended)
-
-Record:
-- `Frontend_Domain` (your tenant domain, e.g. `contoso.onmicrosoft.com`)
-
-## Local configuration (recommended: user-secrets)
-
-Backend (`demo4.1/SaaS.Backend`):
-
-```powershell
-cd demo4.1\\SaaS.Backend
-dotnet user-secrets set "AzureAd:TenantId" "<Backend_TenantId>"
-dotnet user-secrets set "AzureAd:Audience" "api://<Backend_ClientId>"
+### Diagram
+```
+[Frontend BFF (Blazor Server + YARP)]
+    ↓ (OIDC Auth)
+[Entra ID]
+    ↓ (OBO Token)
+[Backend API (Weather)]
+    ↓ (Delegated Scopes)
+[Microsoft Graph (User.Read)]
 ```
 
-Frontend (`demo4.1/SaaS.Frontend/SaaS.Frontend`):
+### Key Decisions
+1. **YARP Proxy Integration:** Use the BFF to proxy `/api/*` requests to backend services, centralizing auth handling.
+2. **.NET Aspire Orchestration:** Manage service discovery and configuration for the distributed setup.
+3. **OBO Flow for Downstream APIs:** Exchange user tokens for API access with delegated permissions.
 
-```powershell
-cd demo4.1\\SaaS.Frontend\\SaaS.Frontend
-dotnet user-secrets set "AzureAd:TenantId" "<Frontend_TenantId>"
-dotnet user-secrets set "AzureAd:ClientId" "<Frontend_ClientId>"
-dotnet user-secrets set "AzureAd:ClientSecret" "<Frontend_ClientSecret>"
-dotnet user-secrets set "AzureAd:Domain" "<Frontend_Domain>"
-dotnet user-secrets set "DownstreamApis:WeatherApi:Scopes:0" "api://<Backend_ClientId>/Weather.Get"
-dotnet user-secrets set "DownstreamApis:MicrosoftGraph:Scopes:0" "User.Read"
-```
+## What's New
+Refinements from demo4, introducing distributed orchestration and proxy patterns.
 
-Note: `Microsoft.Identity.Web` downstream API configuration expects `Scopes` to be a collection (array). For user-secrets, set array entries using `:0`, `:1`, ...
+- **Added .NET Aspire:** Orchestration for the app host and service defaults.
+- **Integrated YARP Proxy:** BFF routes `/api/*` to backend services.
+- **Enhanced Token Handling:** OBO flow for weather API and Microsoft Graph.
 
-## Run
+## Getting Started
+Instructions to run and verify the demo.
 
+### 1. Prerequisites
+- Microsoft Entra tenant with admin access for app registrations.
+- .NET 10.0 SDK installed.
+- Two Entra app registrations:
+  - **Backend API:** Expose scope `Weather.Get`.
+  - **Frontend BFF:** Web app with redirect URIs for `https://localhost:7001/signin-oidc` and `https://localhost:7001/signout-callback-oidc`.
+
+### 2. Execution
 ```powershell
 cd demo4.1
-dotnet run --project .\\SaaS.AppHost
+dotnet run --project SaaS.AppHost --launch-profile https
 ```
 
-Note: `SaaS.AppHost` uses `Aspire.AppHost.Sdk` and `Properties/launchSettings.json` to configure the Dashboard and OTLP endpoints. If you run without launch settings for some reason, add `--launch-profile https`.
+### 3. Verification Steps
+- [x] **Launch App:** Open the frontend endpoint from Aspire dashboard. - Expected: Login page loads.
+- [x] **Authenticate:** Sign in with Entra credentials. - Expected: Redirect to `/weather`.
+- [x] **Access Weather API:** Navigate to `/weather`. - Expected: Weather forecast data displays.
 
-Then open the `frontend` endpoint and navigate to `/weather`.
+## Troubleshooting
+Common issues and fixes specific to this demo.
+
+- **401 Errors on API Calls:** Ensure OBO scopes are configured in user-secrets and admin consent is granted.
+- **Sign-in Redirect Failures:** Confirm redirect URIs match the frontend launch settings.
+- **Aspire Dashboard Missing:** Run with launch profile: `dotnet run --project SaaS.AppHost --launch-profile https`.
+
+## What's Next?
+This demo evolves into demo5, focusing on downstream API communication patterns and protected scopes.

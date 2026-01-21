@@ -16,8 +16,8 @@
     <PackageReference Include="Microsoft.Identity.Web.UI" Version="4.2.0" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
     <ProjectReference Include="..\SaaS.Frontend.Client\SaaS.Frontend.Client.csproj" />
-    <ProjectReference Include="..\..\SaaS.ServiceDefaults\SaaS.ServiceDefaults.csproj" />
-    <ProjectReference Include="..\..\SaaS.Shared\SaaS.Shared.csproj" />
+    <ProjectReference Include="..\SaaS.ServiceDefaults\SaaS.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\SaaS.Shared\SaaS.Shared.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.1" />
   </ItemGroup>
 

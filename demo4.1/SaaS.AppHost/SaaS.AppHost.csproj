@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SaaS.Backend\SaaS.Backend.csproj" />
-    <ProjectReference Include="..\SaaS.Frontend\SaaS.Frontend\SaaS.Frontend.csproj" />
+    <ProjectReference Include="..\SaaS.Frontend\SaaS.Frontend.csproj" />
   </ItemGroup>
 
 </Project>
