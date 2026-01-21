@@ -75,7 +75,10 @@ builder.Services.AddAuthorization(options =>
                 var scopes = ctx.User.FindFirst("scp")?.Value
                     ?? ctx.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
 
-                return scopes?.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains("Weather.Get") == true;
+                const string requiredScope = "access_as_user";
+                return scopes?.Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(scope =>
+                    scope.Equals(requiredScope, StringComparison.OrdinalIgnoreCase)
+                    || scope.EndsWith($"/{requiredScope}", StringComparison.OrdinalIgnoreCase)) == true;
             });
         });
 });
@@ -131,12 +134,12 @@ static IEnumerable<string> GetValidAudiences(string? audience)
 
     audience = audience.Trim();
 
-    // Normalize common misconfigurations like "api://{clientId}/Weather.Get".
+    // Normalize common misconfigurations like "api://{clientId}/access_as_user".
     if (audience.StartsWith("api://", StringComparison.OrdinalIgnoreCase) &&
         Uri.TryCreate(audience, UriKind.Absolute, out var audienceUri))
     {
         // Reconstruct without path/query/fragment.
-        // For api://{clientId}/Weather.Get, this becomes api://{clientId}.
+        // For api://{clientId}/access_as_user, this becomes api://{clientId}.
         var normalizedApiAudience = $"api://{audienceUri.Host}";
         return new[] { normalizedApiAudience, audienceUri.Host };
     }
