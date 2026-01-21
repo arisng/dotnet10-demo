@@ -4,16 +4,16 @@
 
 This repository is a **progressive workshop** demonstrating modern .NET 10 patterns across 8 incremental demos:
 
-| Demo | Focus | Key Patterns |
-|------|-------|--------------|
-| **demo1** | Identity Foundation | ASP.NET Core Identity, Bootstrap integration |
-| **demo2** | Dual-Mode Handoff (Baseline) | Blazor Server ↔ WASM transition, prerender-safe DI |
-| **demo3** | BFF + RBAC | Permission-based authorization, role-permission junction table |
-| **demo4** | Entra ID Integration | OBO flow, Microsoft Graph, enterprise auth |
-| **demo5** | Downstream API | Server-to-server communication, protected scopes |
-| **demo5.1** | Distributed Modular Monolith | .NET Aspire, YARP Proxy, "Two Locks" security |
-| **demo6** | Multi-Tenant SaaS | Finbuckle, Multi-Identity, Data Isolation |
-| **demo7** | Feature Flags & Hardening | Microsoft.FeatureManagement, Azure AppConfig |
+| Demo        | Focus                        | Key Patterns                                                   |
+| ----------- | ---------------------------- | -------------------------------------------------------------- |
+| **demo1**   | Identity Foundation          | ASP.NET Core Identity, Bootstrap integration                   |
+| **demo2**   | Dual-Mode Handoff (Baseline) | Blazor Server ↔ WASM transition, prerender-safe DI             |
+| **demo3**   | BFF + RBAC                   | Permission-based authorization, role-permission junction table |
+| **demo4**   | Entra ID Integration         | OBO flow, Microsoft Graph, enterprise auth                     |
+| **demo5**   | Downstream API               | Server-to-server communication, protected scopes               |
+| **demo5.1** | Distributed Modular Monolith | .NET Aspire, YARP Proxy, "Two Locks" security                  |
+| **demo6**   | Multi-Tenant SaaS            | Finbuckle, Multi-Identity, Data Isolation                      |
+| **demo7**   | Feature Flags & Hardening    | Microsoft.FeatureManagement, Azure AppConfig                   |
 
 **Key assumption:** demo2 is the baseline for monolithic demos; demo5.1 is the baseline for Aspire-based distributed demos.
 
@@ -85,11 +85,11 @@ scripts/copy-demo.ps1 -NewDemoNumber <n> -DemoName <PascalCase>
 - **Schema Version:** Must use `IdentitySchemaVersions.Version3` for passkey support (demo2+)
 - **Endpoints:** Keep `app.MapAdditionalIdentityEndpoints()` to wire passkey endpoints and `/Account/*` pages
 - **Default Users (demo3+):**
-  | Email | Password | Role |
-  |-------|----------|------|
-  | admin@local.app | Admin123! | Admin |
+  | Email             | Password    | Role    |
+  | ----------------- | ----------- | ------- |
+  | admin@local.app   | Admin123!   | Admin   |
   | manager@local.app | Manager123! | Manager |
-  | user@local.app | User123! | User |
+  | user@local.app    | User123!    | User    |
 
 ### Permission-Based RBAC (demo3+)
 
@@ -257,11 +257,11 @@ The `.docs/` folder supports AI-driven development workflow at two levels:
 #### Root `.docs/` (Workspace-Level)
 Cross-cutting documentation that applies to the entire workspace:
 
-| Folder | Purpose | Naming Pattern |
-|--------|---------|----------------|
-| `issues/` | markdown-based issue (deprecated, should use beads issues system instead) | `YYMMDD_<kebab-case-title>.md` |
-| `research/` | Research findings that ground implementation plans with verified facts | `YYMMDD_<kebab-case-title>.md` |
-| `agent/` | Agentic AI workflow docs—custom agent architecture, orchestration patterns | Descriptive names |
+| Folder      | Purpose                                                                    | Naming Pattern                 |
+| ----------- | -------------------------------------------------------------------------- | ------------------------------ |
+| `issues/`   | markdown-based issue (deprecated, should use beads issues system instead)  | `YYMMDD_<kebab-case-title>.md` |
+| `research/` | Research findings that ground implementation plans with verified facts     | `YYMMDD_<kebab-case-title>.md` |
+| `agent/`    | Agentic AI workflow docs—custom agent architecture, orchestration patterns | Descriptive names              |
 
 #### Demo-Level `.docs/` (demo5+)
 Starting from demo5, each demo folder may contain its own `.docs/` folder for demo-specific documentation:
