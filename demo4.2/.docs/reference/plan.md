@@ -5,6 +5,7 @@ Below is a **.NET 10** sample solution using
 - **Blazor Web App BFF with YARP** orchestrated with **Aspire**. 
 It implements a **single local RBAC** that emits **`permission` claims** into access tokens regardless of login method.
 RBAC is role-based (role → permission), with optional user-level overrides.
+**Requirement:** `permission` claims must be present in the **BFF auth state**. This requires the IdP to return `permission` in **UserInfo** (or ID token) and the BFF to explicitly map that claim.
 
 This demo intentionally keeps the **DProcess.\*** namespace/project naming (it does **not** follow the repo’s usual naming conventions).
 It is a **fresh implementation** that **inherits the README narrative from demo4.1**, but introduces a **dedicated IdP project** that demo4.1 does not include.
@@ -24,7 +25,7 @@ It is a **fresh implementation** that **inherits the README narrative from demo4
 # Solution layout
 
 ```
-src/
+demo4.2/
   DProcess.AppHost/                 (Aspire host)
   DProcess.ServiceDefaults/         (Aspire defaults)
   DProcess.Idp/                     (Identity + OpenIddict server + Entra external login + UI)
@@ -49,6 +50,18 @@ DProcess.Idp
 DProcess.Shared
   └─ referenced by Idp/Bff/Api for shared models and permission constants
 ```
+
+---
+
+# Request flows (all diagrams)
+
+See: `demo4.2/.docs/reference/flows.md`
+
+---
+
+# Solution file format
+
+Use **`.slnx`** for the solution file (not `.sln`). If your installed SDK does not support `--format slnx`, create `.sln` and convert to `.slnx` using the IDE tooling before continuing.
 
 ---
 
@@ -195,6 +208,8 @@ builder.Services.AddOpenIddict()
                .SetUserinfoEndpointUris("/connect/userinfo");
 
         options.AllowAuthorizationCodeFlow();
+        // Required if you want long-lived sessions with refresh tokens.
+        // options.AllowRefreshTokenFlow();
         options.RequireProofKeyForCodeExchange();
 
         // For development only. Replace with real certs in production.
@@ -209,7 +224,7 @@ builder.Services.AddOpenIddict()
                .EnableStatusCodePagesIntegration();
 
         // Scopes that your BFF/API may request.
-        options.RegisterScopes("openid", "profile", "email", "api");
+        options.RegisterScopes("openid", "profile", "email", "api" /*, "offline_access"*/);
     })
     .AddValidation(options =>
     {
@@ -293,12 +308,16 @@ public sealed class OpenIddictSeeder(IServiceProvider sp) : IHostedService
                     Permissions.Endpoints.Userinfo,
 
                     Permissions.GrantTypes.AuthorizationCode,
+                    // Add refresh tokens if using offline_access.
+                    // Permissions.GrantTypes.RefreshToken,
                     Permissions.ResponseTypes.Code,
 
                     Permissions.Scopes.Profile,
                     Permissions.Scopes.Email,
                     Permissions.Scopes.OpenId,
                     "scp:api"
+                    // If using refresh tokens:
+                    // Permissions.Scopes.OfflineAccess
                 },
 
                 Requirements =
@@ -365,6 +384,7 @@ using OpenIddict.Server.AspNetCore;
 using DProcess.Idp.Data;
 using DProcess.Idp.Security;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+using System.Linq;
 
 namespace DProcess.Idp.Controllers;
 
@@ -423,11 +443,14 @@ public class AuthorizationController(
     [HttpGet("~/connect/userinfo"), Authorize(AuthenticationSchemes = OpenIddictServerAspNetCoreDefaults.AuthenticationScheme)]
     public IActionResult UserInfo()
     {
+        var permissions = User.FindAll("permission").Select(c => c.Value).ToArray();
         return Ok(new
         {
             sub = User.GetClaim(Claims.Subject),
             name = User.GetClaim(Claims.Name),
-            email = User.GetClaim(Claims.Email)
+            email = User.GetClaim(Claims.Email),
+            // Ensure BFF can load permission claims via UserInfo.
+            permission = permissions
         });
     }
 }
@@ -481,16 +504,14 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IClaimsTransformation, PermissionClaimsTransformation>();
 
 // Register policies for Blazor [Authorize] attributes
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("weather.read", policy => policy.AddRequirements(new PermissionRequirement("weather.read")));
-    options.AddPolicy("weather.write", policy => policy.AddRequirements(new PermissionRequirement("weather.write")));
-    options.AddPolicy("users.read", policy => policy.AddRequirements(new PermissionRequirement("users.read")));
-    options.AddPolicy("users.write", policy => policy.AddRequirements(new PermissionRequirement("users.write")));
-    options.AddPolicy("users.delete", policy => policy.AddRequirements(new PermissionRequirement("users.delete")));
-    options.AddPolicy("reports.view", policy => policy.AddRequirements(new PermissionRequirement("reports.view")));
-    options.AddPolicy("reports.export", policy => policy.AddRequirements(new PermissionRequirement("reports.export")));
-});
+builder.Services.AddAuthorizationBuilder() // Prefer AddAuthorizationBuilder instead of AddAuthorization
+    .AddPolicy("weather.read", policy => policy.AddRequirements(new PermissionRequirement("weather.read")))
+    .AddPolicy("weather.write", policy => policy.AddRequirements(new PermissionRequirement("weather.write")))
+    .AddPolicy("users.read", policy => policy.AddRequirements(new PermissionRequirement("users.read")))
+    .AddPolicy("users.write", policy => policy.AddRequirements(new PermissionRequirement("users.write")))
+    .AddPolicy("users.delete", policy => policy.AddRequirements(new PermissionRequirement("users.delete")))
+    .AddPolicy("reports.view", policy => policy.AddRequirements(new PermissionRequirement("reports.view")))
+    .AddPolicy("reports.export", policy => policy.AddRequirements(new PermissionRequirement("reports.export")));
 
 // Register custom handlers
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -525,6 +546,14 @@ In **InteractiveAuto**, the authenticated user is established on the **server**:
 - The BFF remains the auth source of truth; the WASM client does not store tokens.
 - If the WASM UI needs auth state, it should consume the **server-provided** authentication state via `AuthenticationStateProvider`.
 With **Option A**, the BFF expects `permission` claims to arrive via the **ID token/UserInfo** from the IdP, so no `PermissionClaimsTransformation` is required in the BFF.
+**Important:** the IdP **must** return `permission` in UserInfo, and the BFF must map that claim into the auth principal (see 2.1).
+See `demo4.2/.docs/reference/flows.md` (ClaimsPrincipal construction diagram).
+The SSR auth state is serialized and transferred to the WASM client by `PersistingServerAuthenticationStateProvider` (reference Demo4.EntraIntegration.Authorization.PersistingServerAuthenticationStateProvider).
+- Register this in `Program.cs`: 
+```csharp
+// Register the persisting provider to pass state to WASM
+builder.Services.AddScoped<PersistingServerAuthenticationStateProvider>();
+```
 
 ## 2.1 Program.cs
 
@@ -532,6 +561,7 @@ With **Option A**, the BFF expects `permission` claims to arrive via the **ID to
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -547,6 +577,7 @@ builder.Services.AddAuthentication(options =>
 .AddCookie(options =>
 {
     options.Cookie.Name = "__Host-bff";
+    // Refresh tokens on long-lived sessions (see 2.1.1).
 })
 .AddOpenIdConnect(options =>
 {
@@ -565,9 +596,45 @@ builder.Services.AddAuthentication(options =>
     options.Scope.Add("profile");
     options.Scope.Add("email");
     options.Scope.Add("api");
+    // Optional if using refresh tokens:
+    // options.Scope.Add("offline_access");
 
     // Helps avoid claim mapping surprises
     options.MapInboundClaims = false;
+
+    // Map permission claims from UserInfo into the auth state.
+    // If permission is an array, use OnUserInformationReceived to add multiple claims.
+    options.Events = new OpenIdConnectEvents
+    {
+        OnUserInformationReceived = context =>
+        {
+            if (context.User.TryGetProperty("permission", out var permValue))
+            {
+                if (permValue.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var p in permValue.EnumerateArray())
+                    {
+                        var value = p.GetString();
+                        if (!string.IsNullOrWhiteSpace(value))
+                            context.Principal?.AddIdentity(new ClaimsIdentity(new[]
+                            {
+                                new Claim("permission", value)
+                            }));
+                    }
+                }
+                else if (permValue.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var value = permValue.GetString();
+                    if (!string.IsNullOrWhiteSpace(value))
+                        context.Principal?.AddIdentity(new ClaimsIdentity(new[]
+                        {
+                            new Claim("permission", value)
+                        }));
+                }
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -619,6 +686,84 @@ app.MapGet("/logout", async (HttpContext ctx) =>
 app.Run();
 ```
 
+## 2.1.1 Access token refresh (required for long-lived sessions)
+
+The current BFF design forwards the stored access token via YARP. Without refresh handling, long-lived sessions will break once the access token expires. Pick **one** of these approaches:
+
+**Option A (recommended for this demo): cookie validation refresh**
+- Request `offline_access` scope in the BFF.
+- Enable refresh tokens in the IdP (`AllowRefreshTokenFlow` + `offline_access` scope).
+- On cookie validation, detect near-expiry access tokens, call the token endpoint with the refresh token, and update the cookie’s stored tokens.
+
+**Option B:** add an access token management library and centralize refresh logic.
+
+### Minimal refresh implementation (Option A)
+
+Requires the `IdentityModel` package (`IdentityModel.Client` helpers).
+
+```csharp
+using IdentityModel.Client;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Extensions.Options;
+
+builder.Services.AddHttpClient();
+
+builder.Services.AddAuthentication()
+    .AddCookie(options =>
+    {
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnValidatePrincipal = async ctx =>
+            {
+                var expiresAt = ctx.Properties.GetTokenValue("expires_at");
+                if (!DateTimeOffset.TryParse(expiresAt, out var expires))
+                    return;
+
+                // Refresh if token expires within 5 minutes.
+                if (expires > DateTimeOffset.UtcNow.AddMinutes(5))
+                    return;
+
+                var refreshToken = ctx.Properties.GetTokenValue("refresh_token");
+                if (string.IsNullOrEmpty(refreshToken))
+                    return;
+
+                var oidc = ctx.HttpContext.RequestServices
+                    .GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+                    .Get(OpenIdConnectDefaults.AuthenticationScheme);
+
+                var config = await oidc.ConfigurationManager!.GetConfigurationAsync(ctx.HttpContext.RequestAborted);
+                var client = ctx.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>().CreateClient();
+
+                var tokenResponse = await client.RequestRefreshTokenAsync(new RefreshTokenRequest
+                {
+                    Address = config.TokenEndpoint,
+                    ClientId = oidc.ClientId,
+                    ClientSecret = oidc.ClientSecret,
+                    RefreshToken = refreshToken
+                }, ctx.HttpContext.RequestAborted);
+
+                if (tokenResponse.IsError)
+                {
+                    ctx.RejectPrincipal();
+                    await ctx.HttpContext.SignOutAsync();
+                    return;
+                }
+
+                ctx.Properties.UpdateTokenValue("access_token", tokenResponse.AccessToken);
+                ctx.Properties.UpdateTokenValue("refresh_token", tokenResponse.RefreshToken ?? refreshToken);
+                ctx.Properties.UpdateTokenValue("expires_at",
+                    DateTimeOffset.UtcNow.AddSeconds(tokenResponse.ExpiresIn).ToString("o"));
+
+                ctx.ShouldRenew = true;
+            }
+        };
+    });
+```
+
+---
+
 ## 2.2 `appsettings.Development.json`
 ```json
 {
@@ -668,7 +813,7 @@ Import the same authorization helpers from demo3:
 Use the same `RequirePermission("...")` extension when mapping minimal APIs in `DProcess.Api`.
 Register `PermissionAuthorizationHandler` in `Program.cs` (see 3.1).
 
-## 3.1 Program.cs
+## 3.1 Program.cs (single issuer)
 ```csharp
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -707,6 +852,91 @@ app.MapPost("/api/weather", () => Results.Ok(new { updated = true }))
    .RequirePermission("weather.write");
 
 app.Run();
+```
+
+## 3.2 Program.cs (multi-issuer for OBO path)
+
+If you enable **Path A** (Entra tokens for Graph), the API must validate **two issuers**. Use **separate authentication schemes** and bind them to **separate endpoint groups**:
+
+```csharp
+builder.Services.AddAuthentication()
+    .AddJwtBearer("OpenIddict", options =>
+    {
+        options.Authority = builder.Configuration["Idp:Authority"]!;
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidAudience = "api",
+            ValidateAudience = true
+        };
+    })
+    .AddJwtBearer("Entra", options =>
+    {
+        var tenantId = builder.Configuration["Entra:TenantId"]!;
+        var apiClientId = builder.Configuration["Entra:ApiClientId"]!;
+        options.Authority = $"https://login.microsoftonline.com/{tenantId}/v2.0";
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidAudience = $"api://{apiClientId}",
+            ValidateAudience = true
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("OpenIddictApi", policy =>
+        policy.AddAuthenticationSchemes("OpenIddict").RequireAuthenticatedUser())
+    .AddPolicy("EntraGraphApi", policy =>
+        policy.AddAuthenticationSchemes("Entra").RequireAuthenticatedUser());
+
+// OpenIddict endpoints: local RBAC
+var localApi = app.MapGroup("/api")
+    .RequireAuthorization("OpenIddictApi");
+
+localApi.MapGet("/weather", () => Results.Ok(new[] { "Sunny", "Cloudy" }))
+    .RequirePermission("weather.read");
+
+// Entra endpoints: Graph path
+var graphApi = app.MapGroup("/api/graph")
+    .RequireAuthorization("EntraGraphApi");
+
+graphApi.MapGet("/me", () => Results.Ok());
+```
+
+## 3.3 RBAC consistency for Entra tokens (choose one)
+
+**Option A (keeps “single local RBAC”):** enrich Entra-authenticated principals with local permissions in the API before authorization (e.g., via `IClaimsTransformation` or a custom authorization handler that queries the IdP/DB by Entra `oid`).
+
+**Option B (simpler):** split endpoint policy: OpenIddict-protected endpoints use local permission policies; Entra-protected Graph endpoints use Entra scopes only. If you choose this, update the “single local RBAC” claim accordingly.
+
+### Minimal enrichment example (Option A)
+
+```csharp
+public sealed class EntraPermissionClaimsTransformation(
+    IPermissionLookup permissionLookup) : IClaimsTransformation
+{
+    public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
+    {
+        // Only enrich Entra-authenticated identities.
+        if (!principal.Identities.Any(i => i.AuthenticationType == "Entra"))
+            return principal;
+
+        var oid = principal.FindFirstValue("oid");
+        if (string.IsNullOrWhiteSpace(oid))
+            return principal;
+
+        var permissions = await permissionLookup.GetPermissionsForEntraOidAsync(oid);
+        var id = new ClaimsIdentity();
+        foreach (var p in permissions)
+            id.AddClaim(new Claim("permission", p));
+
+        principal.AddIdentity(id);
+        return principal;
+    }
+}
+
+// Register:
+builder.Services.AddScoped<IClaimsTransformation, EntraPermissionClaimsTransformation>();
 ```
 
 ## 3.2 `appsettings.Development.json`
@@ -769,10 +999,99 @@ If you want, I’ll provide the adapted seeding code in the next message.
 ---
 
 # 7) OBO flow (On-Behalf-Of)
+Research: `demo4.2/.docs/reference/research-06-obo-flow.md`
 
-This plan **does not implement OBO**. It only proxies the IdP-issued access token to the API via the BFF.
+### Current setup
+This plan **does not implement OBO**. The BFF proxies the IdP-issued access token to `DProcess.Api`.
 
-If OBO is required later, add a dedicated downstream API integration that exchanges the user token for a new token (e.g., via RFC 8693 token exchange or Microsoft Identity Web for Entra-based OBO). That requires new configuration in IdP/BFF and is out of scope for this demo4.2 plan.
+### OBO feasibility in this architecture (Microsoft Graph only)
+OBO to **Microsoft Graph** requires the **incoming access token** to be issued by **Entra**. Since demo4.2 issues tokens from **OpenIddict**, those tokens **cannot** be used directly for Graph OBO.
+
+### Path A (selected): Entra authority for downstream Graph access
+We will keep OpenIddict for the IdP, but **switch the downstream path to Entra** so that `DProcess.Api` can perform OBO for Graph.
+
+**Flow (high level):**
+```
+Browser → DProcess.Bff (login)
+  ├─ Local auth via OpenIddict (IdP cookie + local access token)
+  └─ Entra OIDC (secondary) for Graph-enabled access
+
+DProcess.Bff → DProcess.Api (Bearer token issued by Entra)
+DProcess.Api → Microsoft Graph (OBO using the incoming Entra access token)
+```
+
+**What changes in practice:**
+- **BFF adds Entra OIDC** (in addition to OpenIddict) for the **Graph‑enabled path**.  
+  The BFF obtains an **Entra access token** and calls `DProcess.Api` with it (e.g., via YARP transform or a dedicated Graph path like `/api/graph/*`).
+- **DProcess.Api switches to Microsoft.Identity.Web** for the Graph path:  
+  `AddMicrosoftIdentityWebApi(...)` + `EnableTokenAcquisitionToCallDownstreamApi()` + `AddDownstreamApi("Graph", ...)`.
+- **OBO happens in DProcess.Api** (server‑to‑server) using the incoming Entra access token.
+
+**Security boundaries:**
+- OpenIddict remains the **local IdP** for app auth + permission claims.
+- Entra becomes the **authority** only for the **Graph‑enabled downstream path**.
+
+**Scope of OBO in demo4.2:**
+- OBO is **only** used for Microsoft Graph.  
+- Other APIs continue to accept OpenIddict tokens with permission claims.
+
+### Required clarification: multi-issuer handling
+If Path A is enabled, the API must explicitly handle **two token issuers** (OpenIddict and Entra). See **3.2** for the multi-scheme configuration and split endpoint policy.
+
+### Required clarification: RBAC consistency
+Entra tokens do **not** carry the local `permission` claims. You must either:
+- **Enrich** Entra principals with local permissions before authorization (keeps “single local RBAC”), or
+- **Split** policies: local RBAC for OpenIddict endpoints, Entra scopes for Graph endpoints (simpler, but update the “single local RBAC” statement).
+
+**Non‑goals:**
+- No RFC 8693 token‑exchange bridge in demo4.2.
+
+### Consent vs token (why the first consent isn’t enough)
+- **Consent grants permission** for a specific **client app** to request Graph tokens; it does **not** produce a reusable Graph access token.
+- Graph access tokens are **short‑lived** and **audience‑specific**. They must be issued by Entra **for the client app that will call Graph**.
+- In this design, the **IdP’s Entra app registration** (used for external login) is a **different client** from the **BFF/Api’s Entra app registration** (used for Graph/OBO), so consent does not automatically apply across them.
+
+### Entra app registrations (two-app demo setup)
+We use **two** Entra app registrations for Path A:
+
+**App 1: IdP external login (DProcess.Idp.External)**  
+Purpose: federate user login into the local IdP.
+
+1) Microsoft Entra admin center → **App registrations** → **New registration**  
+2) Name: `DProcess.Idp.External`  
+   - Supported account types: **Single tenant**  
+3) After creation, record **Tenant ID** and **Client ID**  
+4) **Authentication** → **Add a platform** → **Web**  
+   - Redirect URI: `https://localhost:7241/signin-entra`  
+5) **Certificates & secrets** → **New client secret**  
+6) Use these values in `DProcess.Idp` `appsettings.Development.json` under `Entra:*`
+
+**App 2: Graph OBO client + API (DProcess.Graph.OBO)**  
+Purpose: BFF obtains Entra tokens for the API; API performs OBO to Microsoft Graph.
+
+1) Microsoft Entra admin center → **App registrations** → **New registration**  
+2) Name: `DProcess.Graph.OBO`  
+   - Supported account types: **Single tenant**  
+3) Record **Tenant ID** and **Client ID**  
+4) **Authentication** → **Add a platform** → **Web**  
+   - Redirect URI: `https://localhost:7181/signin-oidc` (BFF)  
+5) **Expose an API**  
+   - Application ID URI: `api://<client-id>`  
+   - Add scope: `access_as_user` (used by BFF to call `DProcess.Api`)  
+6) **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated**  
+   - Minimum for demo: `User.Read`  
+   - Grant admin consent  
+7) **Certificates & secrets** → **New client secret**  
+8) Optional (recommended for OBO): set `accessTokenAcceptedVersion` = `2` in the manifest  
+9) Configure **BFF** to request scopes:  
+   - `api://<client-id>/access_as_user`  
+   - `User.Read`  
+10) Configure **API** with Microsoft.Identity.Web for OBO and Graph:
+    - `AddMicrosoftIdentityWebApi(...)`  
+    - `EnableTokenAcquisitionToCallDownstreamApi()`  
+    - `AddMicrosoftGraph(...)`
+
+> Note: This combines BFF and API into a single Entra app registration for demo simplicity. If you prefer strict separation, split App 2 into **one web app** (BFF) + **one web API** (Api) and grant delegated permissions accordingly.
 
 ---
 
