@@ -33,13 +33,25 @@
         </div>
 
         <div class="nav-item px-3 mt-3">
-            <AuthorizeView>
+            <AuthorizeView Context="auth">
                 <Authorized>
-                    <div class="nav-link small">Hello, @context.User.Identity?.Name</div>
-                    <a class="nav-link" href="MicrosoftIdentity/Account/SignOut">Sign out</a>
+                    <div class="nav-link small">Hello, @auth.User.Identity?.Name</div>
+                    @if (auth.User.HasClaim(c => c.Type == "oid" || c.Type == "http://schemas.microsoft.com/identity/claims/objectidentifier"))
+                    {
+                        // Entra sign-out uses MIW endpoint.
+                        <a class="nav-link" href="MicrosoftIdentity/Account/SignOut">Sign out (Entra)</a>
+                    }
+                    else
+                    {
+                        <form class="d-inline" action="Account/Logout" method="post">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="returnUrl" value="/" />
+                            <button type="submit" class="nav-link btn btn-link p-0">Sign out</button>
+                        </form>
+                    }
                 </Authorized>
                 <NotAuthorized>
-                    <a class="nav-link" href="MicrosoftIdentity/Account/SignIn">Sign in</a>
+                    <a class="nav-link" href="Account/Login">Sign in</a>
                 </NotAuthorized>
             </AuthorizeView>
         </div>

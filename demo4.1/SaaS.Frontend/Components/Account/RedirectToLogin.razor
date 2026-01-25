@@ -5,8 +5,12 @@
 @code {
     protected override void OnInitialized()
     {
-        var returnUrl = Uri.EscapeDataString(Navigation.Uri);
-        Navigation.NavigateTo($"MicrosoftIdentity/Account/SignIn?returnUrl={returnUrl}", forceLoad: true);
+        var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+        if (!returnUrl.StartsWith('/'))
+        {
+            returnUrl = "/" + returnUrl;
+        }
+        returnUrl = Uri.EscapeDataString(returnUrl);
+        Navigation.NavigateTo($"Account/Login?returnUrl={returnUrl}", forceLoad: true);
     }
 }
-

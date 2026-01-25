@@ -1,8 +1,12 @@
 using SaaS.Frontend.Components;
+using SaaS.Frontend.Components.Account;
+using SaaS.Frontend.Data;
 using SaaS.Frontend.Services;
 using SaaS.ServiceDefaults;
 using SaaS.Shared;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using System.Net.Http.Headers;
@@ -22,19 +26,83 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
+const string entraCookieScheme = "EntraCookie";
+const string hybridAuthScheme = "Hybrid";
+const string identityCookieName = ".AspNetCore.Identity.Application";
+var entraCookieName = $".AspNetCore.{entraCookieScheme}";
+
+// Hybrid auth notes:
+// - Local Identity endpoints live under /Account/* (wired by MapAdditionalIdentityEndpoints).
+// - Entra sign-in/out uses Microsoft.Identity.Web endpoints under /MicrosoftIdentity/Account/*.
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = hybridAuthScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
+    .AddPolicyScheme(hybridAuthScheme, "Hybrid authentication scheme", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            if (context.Request.Cookies.ContainsKey(identityCookieName))
+            {
+                return IdentityConstants.ApplicationScheme;
+            }
+
+            if (context.Request.Cookies.ContainsKey(entraCookieName))
+            {
+                return entraCookieScheme;
+            }
+
+            return IdentityConstants.ApplicationScheme;
+        };
+    })
+    .AddIdentityCookies();
+
+builder.Services.AddAuthentication()
+    // MIW registers /MicrosoftIdentity/Account/* endpoints for Entra challenges and callbacks.
+    .AddMicrosoftIdentityWebApp(options =>
+    {
+        builder.Configuration.Bind("AzureAd", options);
+        options.SaveTokens = true;
+    },
+    openIdConnectScheme: OpenIdConnectDefaults.AuthenticationScheme,
+    cookieScheme: entraCookieScheme)
     .EnableTokenAcquisitionToCallDownstreamApi()
     .AddDownstreamApi("WeatherApi", builder.Configuration.GetSection("DownstreamApis:WeatherApi"))
     .AddDownstreamApi("MicrosoftGraph", builder.Configuration.GetSection("DownstreamApis:MicrosoftGraph"))
     .AddInMemoryTokenCaches();
 
+builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    options.SignInScheme = entraCookieScheme;
+});
+
 builder.Services.AddAuthorization();
 builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
 builder.Services.AddRazorPages();
 
+builder.Services.AddScoped<IdentityRedirectManager>();
+
 // Used to turn MIW token acquisition exceptions into interactive challenges.
 builder.Services.AddScoped<MicrosoftIdentityConsentAndConditionalAccessHandler>();
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite(connectionString));
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = true;
+        options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+    })
+    .AddRoles<ApplicationRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 builder.Services.AddHttpClient(
     "WeatherApi",
@@ -87,6 +155,7 @@ app.MapDefaultEndpoints();
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
+    app.UseMigrationsEndPoint();
 }
 else
 {
@@ -132,6 +201,9 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(SaaS.Frontend.Client._Imports).Assembly);
+
+// Local Identity endpoints under /Account/* for login/register/manage/passkeys.
+app.MapAdditionalIdentityEndpoints();
 
 app.Run();
 
