@@ -4,7 +4,8 @@
 
 ## 0) Prep + structure
 - [ ] Confirm demo4.2 uses **DProcess.* naming** (intentional deviation from repo conventions).
-- [ ] Create `demo4.2/src/` folder if missing.
+- [ ] Decide issuer strategy **early** (single vs multi‑issuer). **Selected: multi‑issuer** (OpenIddict + Entra).
+- [ ] Create `demo4.2/` folder if missing.
 - [ ] Ensure Aspire templates are installed (`dotnet new install Aspire.ProjectTemplates`).
 - [ ] Verify Aspire templates are available (`dotnet new list aspire`).
 - [ ] Create `.slnx` solution file to host `DProcess.*` projects.
@@ -14,7 +15,7 @@
 ### Scaffolding commands
 ```bash
 # Workspace root
-mkdir -p demo4.2/src
+mkdir -p demo4.2
 
 # Solution (.slnx)
 # If --format slnx is not supported by your SDK, create .sln and convert in the IDE.
@@ -23,6 +24,9 @@ dotnet new sln -n DProcess -o demo4.2 --format slnx
 # Aspire
 dotnet new aspire-apphost -n DProcess.AppHost -o demo4.2/src/DProcess.AppHost
 dotnet new aspire-servicedefaults -n DProcess.ServiceDefaults -o demo4.2/src/DProcess.ServiceDefaults
+
+# Note: some Aspire templates or IDE scaffolds may generate a .sln.
+# If that happens, convert to .slnx and delete/ignore the .sln to avoid drift.
 
 # Blazor Web Apps
 # IdP (Identity-based)
@@ -81,7 +85,7 @@ dotnet new classlib -n DProcess.Shared -o demo4.2/src/DProcess.Shared
 - [ ] Add package references for OIDC + YARP.
 - [ ] Configure `Program.cs` with OIDC client pointing at IdP.
 - [ ] Enable `SaveTokens` + `GetClaimsFromUserInfoEndpoint` for access token forwarding.
-- [ ] Map `permission` from UserInfo into the auth principal (ClaimActions).
+- [ ] Map `permission` from UserInfo into the auth principal (use `OnUserInformationReceived` to handle arrays).
 - [ ] Register authorization policies for each permission (no claims transformation).
 - [ ] Register `PermissionAuthorizationHandler` (port from demo3).
 - [ ] Register `PersistingServerAuthenticationStateProvider` for InteractiveAuto.
@@ -101,8 +105,8 @@ dotnet new classlib -n DProcess.Shared -o demo4.2/src/DProcess.Shared
 - [ ] Register `PermissionAuthorizationHandler`.
 - [ ] Map minimal endpoints with `.RequirePermission("...")`.
 - [ ] Add `appsettings.Development.json` for IdP authority.
-- [ ] If enabling Graph/OBO: add a second JWT bearer scheme for Entra and split endpoint auth policies.
-- [ ] If enabling Graph/OBO: choose RBAC consistency strategy (enrich Entra principal or split policies).
+- [ ] Add a second JWT bearer scheme for Entra and split endpoint auth policies (required by selected multi‑issuer strategy).
+- [ ] Choose RBAC consistency strategy for Entra endpoints (enrich Entra principal or split policies).
 
 ## 8) Aspire AppHost (DProcess.AppHost)
 - [ ] Wire up AppHost to reference IdP, BFF, and API projects.
@@ -118,7 +122,7 @@ dotnet new classlib -n DProcess.Shared -o demo4.2/src/DProcess.Shared
 - [ ] Add secondary Entra OIDC config for BFF (Graph-enabled path).
 - [ ] Configure API with `Microsoft.Identity.Web` + Graph downstream API.
 - [ ] Add YARP route (e.g., `/api/graph/*`) that uses Entra access token.
-- [ ] Update API auth to support multi-issuer (OpenIddict + Entra) with per-route policies.
+- [ ] Update API auth to support multi-issuer (OpenIddict + Entra) with per-route policies (selected strategy).
 - [ ] Document RBAC handling for Entra endpoints (enrichment vs split policies).
 - [ ] Document two Entra app registrations and required scopes.
 
