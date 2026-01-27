@@ -1,5 +1,5 @@
 ---
-description: 'Guidelines for creating and maintaining demo README files following the standard template'
+description: 'Guidelines for creating and maintaining the README file of a demo project following the standard template'
 applyTo: 'demo*/README.md'
 ---
 

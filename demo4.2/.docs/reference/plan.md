@@ -120,6 +120,8 @@ The service should compute permissions from **role assignments** only.
 
 ## 1.3 IdP program setup (Blazor Web App + Identity + Entra external + OpenIddict)
 
+**UI mode:** IdP is **Interactive Server only** (no WASM render mode).
+
 ### `Program.cs`
 ```csharp
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -135,7 +137,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
-    .AddInteractiveWebAssemblyComponents()
     .AddAuthenticationStateSerialization();
 
 builder.Services.AddCascadingAuthenticationState();
@@ -248,8 +249,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
-    .AddInteractiveWebAssemblyRenderMode();
+    .AddInteractiveServerRenderMode();
 // Required for passkey endpoints and /Account/* routes.
 app.MapAdditionalIdentityEndpoints();
 app.MapControllers();
@@ -338,6 +338,8 @@ public sealed class OpenIddictSeeder(IServiceProvider sp) : IHostedService
 
 Use the **Blazor Identity components** pattern from demo4 as the baseline instead of Razor Pages.
 These are the standard scaffolding outputs for Blazor Identity UI and align with passkeys + external logins:
+
+**Important:** keep the IdP UI **Interactive Server only** (no WASM render mode).
 
 - `demo4/Demo4.EntraIntegration/Components/Account/Pages/Login.razor`
 - `demo4/Demo4.EntraIntegration/Components/Account/Pages/ExternalLogin.razor`

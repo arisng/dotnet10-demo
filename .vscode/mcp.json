@@ -32,6 +32,14 @@
 			"env": {
 				"GOOGLE_OAUTH_CREDENTIALS": "${env:HOME}/.config/google-calendar-mcp/gcp-oauth.keys.json"
 			}
+		},
+        "aspire": {
+			"type": "stdio",
+			"command": "aspire",
+			"args": [
+				"mcp",
+				"start"
+			]
 		}
     }
 }

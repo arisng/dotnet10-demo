@@ -4,6 +4,10 @@
     "chat.tools.terminal.autoApprove": {
         "mkdir": true,
         "dotnet build": true,
-        "dotnet run": true
+        "dotnet run": true,
+        "dotnet sln": true,
+        "python": true,
+        "python3": true,
+        "/^python3\\s+\\/home\\/arisng\\/\\.copilot\\/skills\\//": true
     }
 }

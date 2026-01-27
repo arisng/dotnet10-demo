@@ -106,6 +106,8 @@ dotnet watch
 | demo2   | Completed | Dual-mode diagnostics + Passkeys                | demo1      | Auth state probe, full passkey implementation, WASM caching                                                           |
 | demo3   | Completed | BFF APIs + Permission-Based RBAC                | demo2      | Fine-grained permissions, role→permission mapping, claims transformation                                              |
 | demo4   | Completed | Microsoft Entra ID + Claims Mapping             | demo3      | External provider, Graph API (OBO), Entra App Roles mapping, identity-source agnostic auth, API-to-Navigation Handoff |
+| demo4.1 | Completed | Entra + BFF (YARP) + Aspire                     | demo4      | Distributed orchestration, YARP proxy, InteractiveAuto refinements                                                    |
+| demo4.2 | Completed | DProcess IdP + BFF + API (OpenIddict + Entra)   | demo4.1    | Dedicated IdP, unified RBAC claims, Aspire orchestration                                                              |
 | demo5   | Completed | Custom Downstream APIs (Microservices)          | demo4      | Separate API project, Bearer tokens, OBO flow, Architecture comparison                                                |
 | demo5.1 | Completed | Distributed Modular Monolith with Aspire & YARP | demo5      | .NET Aspire orchestration, YARP Proxy, "Two Locks" security model, .NET 10 Built-in OpenAPI + Scalar UI               |
 | demo6   | Planned   | The Multi-Tenant SaaS Monolith (SaaS)           | demo5.1    | Finbuckle, Multi-Identity per Tenant, Shared/Dedicated DB Choice                                                      |
