@@ -3,11 +3,9 @@
   <Project Path="DProcess.AppHost/DProcess.AppHost.csproj" />
   <Project Path="DProcess.ServiceDefaults/DProcess.ServiceDefaults.csproj" />
   <Project Path="DProcess.Shared/DProcess.Shared.csproj" />
+  <Project Path="DProcess.Idp/DProcess.Idp.csproj" />
   <Folder Name="/DProcess.Bff/">
     <Project Path="DProcess.Bff/DProcess.Bff.Client/DProcess.Bff.Client.csproj" />
     <Project Path="DProcess.Bff/DProcess.Bff/DProcess.Bff.csproj" />
-  </Folder>
-  <Folder Name="/DProcess.Idp/">
-    <Project Path="DProcess.Idp/DProcess.Idp/DProcess.Idp.csproj" />
   </Folder>
 </Solution>

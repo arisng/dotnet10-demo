@@ -228,7 +228,7 @@ app.MapGet("/logout-oidc", (HttpContext context) =>
 {
     var request = context.Request;
     var baseUri = new Uri($"{request.Scheme}://{request.Host}{request.PathBase}");
-    var signedOutUri = new Uri(baseUri, GetSignedOutLocalPath(builder.Configuration));
+    var signedOutUri = new Uri(baseUri, GetBffSignedOutLocalPath(builder.Configuration));
     var properties = new AuthenticationProperties
     {
         RedirectUri = signedOutUri.ToString()

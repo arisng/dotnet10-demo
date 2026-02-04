@@ -11,7 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DProcess.Api\DProcess.Api.csproj" />
     <ProjectReference Include="..\DProcess.Bff\DProcess.Bff\DProcess.Bff.csproj" />
-    <ProjectReference Include="..\DProcess.Idp\DProcess.Idp\DProcess.Idp.csproj" />
+    <ProjectReference Include="..\DProcess.Idp\DProcess.Idp.csproj" />
   </ItemGroup>
 
 </Project>
