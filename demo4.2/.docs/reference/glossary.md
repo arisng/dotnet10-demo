@@ -36,6 +36,8 @@ This glossary defines technical terms and concepts referenced by the implementat
 
 - **Authorization endpoint pass-through / Pass-through (OpenIddict)**: A mode provided by OpenIddict (`EnableAuthorizationEndpointPassthrough`) that lets the ASP.NET Core app handle authorization endpoint requests in application code (controller or minimal API) rather than using OpenIddict's built-in UI/handlers. In this repo: pass-through is recommended when custom logic (for example, issuing additional claims or applying custom consent/permission rules) must run before returning tokens; enabling it requires wiring the OpenIddict server with passthrough options and implementing the controller endpoints that read `HttpContext.GetOpenIddictServerRequest()` and `SignIn(...)` as the research notes describe.
 
+- **Manual Authentication Check Pattern (HTTP 302 Auto-Redirect)**: A controller pattern where the authorization endpoint uses `HttpContext.AuthenticateAsync()` instead of the `[Authorize]` attribute, enabling return of **HTTP 302 redirect** (which browsers automatically follow) instead of **HTTP 401 Unauthorized** (which browsers do not follow). In this repo (demo4.2): the `AuthorizationController.AuthorizeEndpoint()` uses this pattern to redirect unauthenticated users to `/Account/Login?ReturnUrl=...` with all OIDC query parameters preserved, ensuring proper browser navigation during the login flow.
+
 ## Tokens, Flows & Acquisition
 
 - **JWT (JSON Web Token)**: A signed token format commonly used as a bearer token. In this repo: `SaaS.Backend` validates JWTs issued by Entra (authority `https://login.microsoftonline.com/{tenant}/v2.0`).

@@ -49,6 +49,7 @@ Legend:
 - Sequence: Browser → IdP → Browser (IdP tokens) → BFF (cookie)
 - Tokens: `id_token` + `access_token` issued by **IdP**
 - Authority: **OpenIddict**
+- **Auto-redirect:** Unauthenticated users accessing `/connect/authorize` receive **HTTP 302 redirect** to `/Account/Login?ReturnUrl=...` (browsers automatically follow, preserving OIDC parameters)
 
 **Flow B — External login via Entra (through IdP)**
 - Trigger: user chooses “Microsoft Entra ID” on IdP login page
@@ -84,13 +85,26 @@ Legend:
 ```mermaid
 sequenceDiagram
   participant U as User/Browser
-  participant IdP as DProcess.Idp
   participant BFF as DProcess.Bff
+  participant IdP as DProcess.Idp
 
-  U->>IdP: GET /Account/Login
+  U->>BFF: Click Login
+  BFF->>IdP: OIDC challenge → GET /connect/authorize
+  Note over IdP: Unauthenticated user detected
+  IdP-->>U: HTTP 302 to /Account/Login?ReturnUrl=...
+  U->>IdP: GET /Account/Login (browser follows redirect)
   IdP-->>U: Login UI (local/passkey)
   U->>IdP: POST credentials / passkey
-  IdP-->>U: id_token + access_token (IdP)
+  Note over IdP: After successful authentication
+  IdP-->>U: HTTP 302 to /connect/authorize (ReturnUrl)
+  U->>IdP: GET /connect/authorize (authenticated)
+  IdP-->>U: HTTP 302 to BFF /signin-oidc with code
+  U->>BFF: GET /signin-oidc?code=...
+  BFF->>IdP: POST /connect/token (exchange code)
+  IdP-->>BFF: id_token + access_token
+  BFF->>IdP: GET /connect/userinfo (with access_token)
+  IdP-->>BFF: user claims including permissions
+  BFF-->>U: HTTP 302 to / (authenticated)
   U->>BFF: Subsequent requests (cookie)
 ```
 

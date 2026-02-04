@@ -44,10 +44,29 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
         accountGroup.MapPost("/Logout", async (
             ClaimsPrincipal user,
             [FromServices] SignInManager<ApplicationUser> signInManager,
+            [FromServices] IConfiguration configuration,
             [FromForm] string returnUrl) =>
         {
+            // Sign out locally first
             await signInManager.SignOutAsync();
-            return TypedResults.LocalRedirect($"~/{returnUrl}");
+            
+            // Redirect to BFF signed-out page so it can clear the BFF cookie and navigate home.
+            var bffBaseUrl = configuration["Bff:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(bffBaseUrl))
+            {
+                bffBaseUrl = "https://localhost:7092";
+            }
+
+            var bffSignedOutLocalPath = configuration["Bff:SignedOutLocalPath"];
+            if (string.IsNullOrWhiteSpace(bffSignedOutLocalPath))
+            {
+                bffSignedOutLocalPath = "/signed-out";
+            }
+            var baseUri = new Uri($"{bffBaseUrl.TrimEnd('/')}/", UriKind.Absolute);
+            var normalizedPath = bffSignedOutLocalPath.StartsWith('/') ? bffSignedOutLocalPath : $"/{bffSignedOutLocalPath}";
+            var bffSignedOutLocalUri = new Uri(baseUri, normalizedPath);
+
+            return TypedResults.Redirect(bffSignedOutLocalUri.ToString());
         });
 
         accountGroup.MapPost("/PasskeyCreationOptions", async (

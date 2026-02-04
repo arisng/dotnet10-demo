@@ -1,0 +1,16 @@
+@page "/signed-out"
+
+@inject NavigationManager Navigation
+
+<PageTitle>Signed Out</PageTitle>
+
+<h1>Signed out</h1>
+<p>Finishing your sign-out. Redirecting to the home page...</p>
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        Navigation.NavigateTo("/logout-local?returnUrl=/", forceLoad: true);
+        return Task.CompletedTask;
+    }
+}

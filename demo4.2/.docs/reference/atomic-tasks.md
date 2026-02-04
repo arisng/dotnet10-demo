@@ -61,6 +61,7 @@ dotnet new classlib -n DProcess.Shared -o demo4.2/src/DProcess.Shared
 - [x] Configure Identity to use `IdentitySchemaVersions.Version3`.
 - [x] Add `OpenIddictSeeder` hosted service to seed the BFF client.
 - [x] Add `AuthorizationController` to emit permission claims into tokens + userinfo.
+- [x] **Fix auto-redirect pattern:** Use manual authentication check (`HttpContext.AuthenticateAsync()`) in `AuthorizeEndpoint()` to return HTTP 302 redirect (not 401) for unauthenticated users.
 - [x] Ensure `/connect/userinfo` returns `permission` claims for BFF auth state.
 - [x] Add controllers to DI + routing.
 - [x] Add `appsettings.Development.json` with IdP DB + Entra settings.

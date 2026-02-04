@@ -122,6 +122,29 @@ public sealed class AuthorizationController : Controller
             permission = permissions
         });
     }
+
+    [HttpGet("~/connect/endsession")]
+    public async Task<IActionResult> LogoutEndpoint()
+    {
+        // Get the OIDC logout request
+        var request = HttpContext.GetOpenIddictServerRequest();
+
+        // Sign out the user from the local Identity cookie
+        await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+
+        // Get the post_logout_redirect_uri from the request
+        var redirectUri = request?.PostLogoutRedirectUri;
+        
+        if (!string.IsNullOrEmpty(redirectUri))
+        {
+            // Redirect to the registered post_logout_redirect_uri
+            // This will typically be the BFF's /signout-callback-oidc endpoint
+            return Redirect(redirectUri);
+        }
+
+        // Default redirect to root
+        return Redirect("/");
+    }
 }
 
 internal static class ClaimsPrincipalExtensions

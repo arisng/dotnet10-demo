@@ -113,6 +113,15 @@ builder.Services.AddAuthentication(options =>
 
         options.Events = new OpenIdConnectEvents
         {
+            OnRedirectToIdentityProviderForSignOut = context =>
+            {
+                var request = context.Request;
+                var bffBaseUri = new Uri($"{request.Scheme}://{request.Host}{request.PathBase}");
+                var bffSignedOutLocalUri = new Uri(bffBaseUri, GetBffSignedOutLocalPath(builder.Configuration));
+
+                context.ProtocolMessage.PostLogoutRedirectUri = bffSignedOutLocalUri.ToString();
+                return Task.CompletedTask;
+            },
             OnUserInformationReceived = context =>
             {
                 if (context.User.RootElement.TryGetProperty("permission", out var permValue))
@@ -143,7 +152,6 @@ builder.Services.AddAuthentication(options =>
                         }
                     }
                 }
-
                 return Task.CompletedTask;
             }
         };
@@ -216,12 +224,35 @@ app.MapGet("/login", (HttpContext context, string? returnUrl = null) =>
         new[] { OpenIdConnectDefaults.AuthenticationScheme });
 });
 
-app.MapGet("/logout", async (HttpContext context) =>
+app.MapGet("/logout-oidc", (HttpContext context) =>
+{
+    var request = context.Request;
+    var baseUri = new Uri($"{request.Scheme}://{request.Host}{request.PathBase}");
+    var signedOutUri = new Uri(baseUri, GetSignedOutLocalPath(builder.Configuration));
+    var properties = new AuthenticationProperties
     {
-        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        // await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
-        return Results.Redirect("/");
-    });
+        RedirectUri = signedOutUri.ToString()
+    };
+
+    return Results.SignOut(properties,
+        [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme]);
+});
+
+app.MapGet("/logout-local", async (HttpContext context, string? returnUrl = null) =>
+{
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+    var redirectUri = "/";
+    if (!string.IsNullOrWhiteSpace(returnUrl)
+        && Uri.TryCreate(returnUrl, UriKind.Relative, out _)
+        && returnUrl.StartsWith('/')
+        && !returnUrl.StartsWith("//", StringComparison.Ordinal))
+    {
+        redirectUri = returnUrl;
+    }
+
+    return Results.Redirect(redirectUri);
+});
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
@@ -230,3 +261,14 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(DProcess.Bff.Client._Imports).Assembly);
 
 app.Run();
+
+static string GetBffSignedOutLocalPath(IConfiguration configuration)
+{
+    var signedOutLocalPath = configuration["Bff:SignedOutLocalPath"];
+    if (string.IsNullOrWhiteSpace(signedOutLocalPath))
+    {
+        return "/signed-out";
+    }
+
+    return signedOutLocalPath.StartsWith('/') ? signedOutLocalPath : $"/{signedOutLocalPath}";
+}

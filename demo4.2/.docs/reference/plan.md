@@ -25,13 +25,16 @@ It is a **fresh implementation** that **inherits the README narrative from demo4
 # Solution layout
 
 ```
-demo4.2/
-  DProcess.AppHost/                 (Aspire host)
-  DProcess.ServiceDefaults/         (Aspire defaults)
-  DProcess.Idp/                     (Identity + OpenIddict server + Entra external login + UI)
-  DProcess.Bff/                     (Blazor Web App + OIDC client + YARP)
-  DProcess.Api/                     (Protected API with permission-claim policies)
-  DProcess.Shared/                  (Shared DTOs/constants, permission names)
+demo4.2
+  /.docs
+  /src
+    DProcess.AppHost/                 (Aspire host)
+    DProcess.ServiceDefaults/         (Aspire defaults)
+    DProcess.Idp/                     (Identity + OpenIddict server + Entra external login + UI)
+    DProcess.Bff/                     (Blazor Web App + OIDC client + YARP)
+    DProcess.Api/                     (Protected API with permission-claim policies)
+    DProcess.Shared/                  (Shared DTOs/constants, permission names)
+    README.md
 ```
 
 ## Project correlation (runtime flow)
@@ -374,10 +377,15 @@ Research: `demo4.2/.docs/reference/research-04-openiddict-claim-destinations.md`
     **Responsibility note:** permission claims are issued by the **IdP** in access tokens **and** ID tokens/UserInfo (Option A).  
     The BFF should treat tokens as read-only; it does not mint or enrich access tokens.
 
+    **Authentication pattern:** The authorization endpoint uses **manual authentication check** instead of `[Authorize]` attribute.  
+    This enables returning **HTTP 302 redirect** (which browsers automatically follow) instead of **HTTP 401** (which browsers do not follow).  
+    When an unauthenticated user accesses `/connect/authorize`, the controller explicitly checks authentication and returns `Redirect("/Account/Login?ReturnUrl=...")` to preserve all OIDC query parameters for post-login flow continuation.
+
 ### `Controllers/AuthorizationController.cs`
 ```csharp
 using System.Security.Claims;
 using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -395,13 +403,22 @@ public class AuthorizationController(
     UserManager<ApplicationUser> userManager,
     PermissionService permissionService) : Controller
 {
-    [HttpGet("~/connect/authorize"), Authorize]
+    [HttpGet("~/connect/authorize")]
     public async Task<IActionResult> AuthorizeEndpoint()
     {
+        // Manual authentication check to return 302 redirect (not 401)
+        var authenticateResult = await HttpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+        if (!authenticateResult.Succeeded)
+        {
+            // Build return URL with all OIDC query parameters preserved
+            var returnUrl = $"{HttpContext.Request.Path}{HttpContext.Request.QueryString}";
+            return Redirect($"/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}");
+        }
+
         var request = HttpContext.GetOpenIddictServerRequest()
                      ?? throw new InvalidOperationException("OpenIddict request missing.");
 
-        var user = await userManager.GetUserAsync(User)
+        var user = await userManager.GetUserAsync(authenticateResult.Principal)
                    ?? throw new InvalidOperationException("User not found.");
 
         var permissions = await permissionService.GetPermissionsAsync(user.Id);

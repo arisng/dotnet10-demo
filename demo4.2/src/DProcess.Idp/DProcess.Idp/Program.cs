@@ -102,7 +102,8 @@ builder.Services.AddOpenIddict()
     {
         options.SetAuthorizationEndpointUris("/connect/authorize")
                .SetTokenEndpointUris("/connect/token")
-               .SetUserinfoEndpointUris("/connect/userinfo");
+               .SetUserinfoEndpointUris("/connect/userinfo")
+               .SetLogoutEndpointUris("/connect/endsession");
 
         options.AllowAuthorizationCodeFlow();
         options.AllowRefreshTokenFlow();
@@ -115,6 +116,7 @@ builder.Services.AddOpenIddict()
                .EnableAuthorizationEndpointPassthrough()
                .EnableTokenEndpointPassthrough()
                .EnableUserinfoEndpointPassthrough()
+               .EnableLogoutEndpointPassthrough()
                .EnableStatusCodePagesIntegration();
 
         options.RegisterScopes(

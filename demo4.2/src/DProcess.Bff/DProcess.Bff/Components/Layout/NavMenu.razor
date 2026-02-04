@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject IConfiguration Configuration
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">DProcess.Bff</a>
     </div>
@@ -28,8 +31,13 @@
 
         <AuthorizeView>
             <Authorized>
+                <div class="nav-item px-3 mt-3">
+                    <a class="nav-link" href="@GetIdpUrl("/Account/Manage")">
+                        <span class="bi bi-person-circle" aria-hidden="true"></span> Manage Account
+                    </a>
+                </div>
                 <div class="nav-item px-3">
-                    <a class="nav-link" href="logout">
+                    <a class="nav-link" href="logout-oidc">
                         <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Logout
                     </a>
                 </div>
@@ -44,4 +52,13 @@
         </AuthorizeView>
     </nav>
 </div>
+
+@code {
+    private string GetIdpUrl(string path)
+    {
+        var authority = Configuration["Idp:Authority"] ?? "https://localhost:7046";
+        var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+        return $"{authority.TrimEnd('/')}{path}?ReturnUrl={returnUrl}";
+    }
+}
 
